@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Rastreador de Hábitos</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e0e0e0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .sidebar {
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(-100%);
+        }
+        .sidebar.open {
+            transform: translateX(0);
+        }
+        @media (min-width: 768px) {
+            .sidebar {
+                transform: translateX(0);
+            }
+            .content-area {
+                margin-left: 256px;
+            }
+        }
+        .active-nav {
+            background-color: #3b82f6;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row min-h-screen">
+
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-button" class="md:hidden fixed top-4 left-4 z-50 p-3 bg-blue-600 text-white rounded-full shadow-lg">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Sidebar Navigation -->
+    <aside id="sidebar" class="sidebar fixed inset-y-0 left-0 w-64 bg-gradient-to-br from-blue-700 to-blue-900 text-white shadow-xl z-40 md:relative md:translate-x-0">
+        <div class="p-6">
+            <h1 class="text-3xl font-bold mb-8 text-center">Habit Tracker</h1>
+            <nav>
+                <ul>
+                    <li class="mb-4">
+                        <a href="#" id="nav-dashboard" class="flex items-center p-3 rounded-lg hover:bg-blue-600 transition-colors duration-200 text-lg font-medium active-nav">
+                            <i class="fas fa-home mr-3"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="mb-4">
+                        <a href="#" id="nav-analysis" class="flex items-center p-3 rounded-lg hover:bg-blue-600 transition-colors duration-200 text-lg font-medium">
+                            <i class="fas fa-chart-line mr-3"></i> Análisis
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 p-6 md:p-8 transition-all duration-300 content-area bg-gray-100">
+
+        <!-- Dashboard Section -->
+        <section id="dashboard-section" class="active-section">
+            <h2 class="text-4xl font-extrabold text-gray-800 mb-8">Dashboard Diario</h2>
+
+            <!-- Current Date Display -->
+            <div class="bg-white p-6 rounded-xl shadow-md mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <h3 class="text-xl sm:text-2xl font-semibold text-gray-700 text-center sm:text-left">Fecha Actual: <span id="current-date" class="text-blue-600"></span></h3>
+                <div class="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+                    <button id="add-habit-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-transform transform hover:scale-105 w-full sm:w-auto">
+                        <i class="fas fa-plus mr-2"></i> Añadir Hábito
+                    </button>
+                    <button id="save-day-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-transform transform hover:scale-105 w-full sm:w-auto">
+                        <i class="fas fa-save mr-2"></i> Guardar Día
+                    </button>
+                </div>
+            </div>
+
+            <!-- Habits Blocks -->
+            <div id="habits-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+                <!-- Habits will be rendered here by JavaScript -->
+            </div>
+
+            <!-- Daily Tasks Section -->
+            <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                <h3 class="text-2xl font-semibold text-gray-700 mb-4">Tareas del Día</h3>
+                <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                    <input type="text" id="new-task-input" placeholder="Añadir nueva tarea..." class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button id="add-task-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105 w-full sm:w-auto">
+                        <i class="fas fa-plus mr-2"></i> Añadir Tarea
+                    </button>
+                </div>
+                <ul id="daily-tasks-list" class="space-y-3">
+                    <!-- Daily tasks will be rendered here -->
+                </ul>
+            </div>
+
+            <!-- Completion Summary and Block Meter -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <!-- Habit Completion Graph -->
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-2xl font-semibold text-gray-700 mb-4">Progreso de Hábitos</h3>
+                    <div class="flex flex-col items-center justify-center h-48">
+                        <div class="text-5xl font-bold text-blue-600 mb-2" id="completion-percentage">0%</div>
+                        <div class="text-lg text-gray-600" id="completion-count">0/0 Hábitos Completados</div>
+                        <div class="w-full bg-gray-200 rounded-full h-4 mt-4">
+                            <div id="progress-bar" class="bg-blue-500 h-4 rounded-full transition-all duration-500" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Block Completion Meter -->
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-2xl font-semibold text-gray-700 mb-4">Estado de Bloques</h3>
+                    <div id="block-meter-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Block status will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Analysis Section -->
+        <section id="analysis-section" class="hidden">
+            <h2 class="text-4xl font-extrabold text-gray-800 mb-8">Análisis de Hábitos</h2>
+
+            <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                <h3 class="text-2xl font-semibold text-gray-700 mb-4">Racha de Días Completados</h3>
+                <div class="text-center">
+                    <p class="text-6xl font-bold text-green-600" id="streak-count">0</p>
+                    <p class="text-xl text-gray-600">Días Consecutivos Completados</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                <h3 class="text-2xl font-semibold text-gray-700 mb-4">Estadísticas Semanales</h3>
+                <div id="weekly-stats" class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg shadow-inner">
+                        <thead class="bg-gray-200">
+                            <tr>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider rounded-tl-lg">Fecha</th>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">Hábitos Completados</th>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">Porcentaje</th>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider rounded-tr-lg">Bloques Completados</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weekly-stats-body" class="divide-y divide-gray-200">
+                            <!-- Weekly stats will be rendered here -->
+                        </tbody>
+                    </table>
+                </div>
+                <p id="no-weekly-data" class="text-center text-gray-500 mt-4 hidden">No hay datos para esta semana.</p>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-md">
+                <h3 class="text-2xl font-semibold text-gray-700 mb-4">Estadísticas Mensuales</h3>
+                <div id="monthly-stats" class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg shadow-inner">
+                        <thead class="bg-gray-200">
+                            <tr>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider rounded-tl-lg">Mes</th>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">Días Registrados</th>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">Promedio Hábitos Completados</th>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider rounded-tr-lg">Promedio Porcentaje</th>
+                            </tr>
+                        </thead>
+                        <tbody id="monthly-stats-body" class="divide-y divide-gray-200">
+                            <!-- Monthly stats will be rendered here -->
+                        </tbody>
+                    </table>
+                </div>
+                <p id="no-monthly-data" class="text-center text-gray-500 mt-4 hidden">No hay datos para este mes.</p>
+            </div>
+        </section>
+
+    </main>
+    
+    <!-- Add/Edit Habit Modal -->
+    <div id="habit-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex justify-center items-center p-4 z-50">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-lg">
+            <h3 id="modal-title" class="text-2xl font-bold mb-4 text-gray-800">Añadir Nuevo Hábito</h3>
+            <form id="habit-form" class="space-y-4">
+                <div>
+                    <label for="habit-name" class="block text-gray-700 font-medium mb-1">Nombre del Hábito:</label>
+                    <input type="text" id="habit-name" required class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="habit-time" class="block text-gray-700 font-medium mb-1">Hora (opcional):</label>
+                    <input type="time" id="habit-time" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="habit-block" class="block text-gray-700 font-medium mb-1">Bloque:</label>
+                    <select id="habit-block" required class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="1">Bloque 1</option>
+                        <option value="2">Bloque 2</option>
+                        <option value="3">Bloque 3</option>
+                        <option value="4">Bloque 4</option>
+                    </select>
+                </div>
+                <div class="flex justify-end gap-4 mt-6">
+                    <button type="button" id="cancel-habit-button" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-lg transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="submit" id="save-habit-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                        Guardar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Global variables for habit data and UI elements
+        let habitDefinitions = [];
+        let dailyHabitStatus = [];
+        let dailyTasks = [];
+        const HABIT_KEY_PREFIX = 'habitTracker_';
+        const HABIT_DEFINITIONS_KEY = 'habitTracker_definitions';
+        const MOBILE_BREAKPOINT = 768;
+
+        // --- Utility Functions ---
+
+        /**
+         * Formats a Date object into a 'YYYY-MM-DD' string.
+         * @param {Date} date - The date object to format.
+         * @returns {string} Formatted date string.
+         */
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        /**
+         * Gets the current date in 'YYYY-MM-DD' format.
+         * @returns {string} The current date string.
+         */
+        function getCurrentDateKey() {
+            return formatDate(new Date());
+        }
+
+        /**
+         * Displays a custom message box instead of alert().
+         * @param {string} message - The message to display.
+         * @param {string} type - 'success', 'error', 'info'.
+         */
+        function showMessageBox(message, type = 'info') {
+            const messageBox = document.createElement('div');
+            messageBox.className = `fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-6 rounded-lg shadow-2xl text-white text-center z-50 transition-all duration-300 transform scale-0 opacity-0`;
+
+            let bgColor = 'bg-blue-500';
+            if (type === 'success') bgColor = 'bg-green-500';
+            else if (type === 'error') bgColor = 'bg-red-500';
+
+            messageBox.classList.add(bgColor);
+            messageBox.innerHTML = `<p class="text-xl font-semibold">${message}</p>`;
+            document.body.appendChild(messageBox);
+
+            setTimeout(() => {
+                messageBox.classList.remove('scale-0', 'opacity-0');
+                messageBox.classList.add('scale-100', 'opacity-100');
+            }, 50);
+
+            setTimeout(() => {
+                messageBox.classList.remove('scale-100', 'opacity-100');
+                messageBox.classList.add('scale-0', 'opacity-0');
+                messageBox.addEventListener('transitionend', () => messageBox.remove());
+            }, 2000);
+        }
+
+        // --- Data Management (Local Storage) ---
+
+        /**
+         * Loads the habit definitions from local storage.
+         */
+        function loadHabitDefinitions() {
+            const storedDefinitions = localStorage.getItem(HABIT_DEFINITIONS_KEY);
+            if (storedDefinitions) {
+                habitDefinitions = JSON.parse(storedDefinitions);
+            } else {
+                habitDefinitions = [];
+                saveHabitDefinitions();
+            }
+        }
+
+        /**
+         * Saves the current habit definitions to local storage.
+         */
+        function saveHabitDefinitions() {
+            localStorage.setItem(HABIT_DEFINITIONS_KEY, JSON.stringify(habitDefinitions));
+        }
+
+        /**
+         * Loads today's progress from local storage, or initializes based on current definitions.
+         */
+        function loadDailyProgress() {
+            const dateKey = getCurrentDateKey();
+            const savedData = localStorage.getItem(`${HABIT_KEY_PREFIX}${dateKey}`);
+
+            if (savedData) {
+                const parsedData = JSON.parse(savedData);
+                // Merge saved completion status with current definitions
+                dailyHabitStatus = habitDefinitions.map(definition => {
+                    const savedHabit = parsedData.habits.find(h => h.id === definition.id);
+                    return { ...definition, completed: savedHabit ? savedHabit.completed : false };
+                });
+                dailyTasks = parsedData.dailyTasks || [];
+            } else {
+                // Initialize today's status based on current definitions
+                dailyHabitStatus = habitDefinitions.map(definition => ({ ...definition, completed: false }));
+                dailyTasks = [];
+            }
+            renderDashboard();
+        }
+        
+        /**
+         * Saves the current day's progress to local storage.
+         */
+        function saveDailyProgress() {
+            const dateKey = getCurrentDateKey();
+            const dataToSave = {
+                habits: dailyHabitStatus,
+                dailyTasks: dailyTasks,
+                totalHabitsCompleted: dailyHabitStatus.filter(h => h.completed).length,
+                totalHabits: dailyHabitStatus.length,
+                completionPercentage: calculateCompletionPercentage(),
+                blockStatus: calculateBlockStatus(),
+                date: dateKey
+            };
+            localStorage.setItem(`${HABIT_KEY_PREFIX}${dateKey}`, JSON.stringify(dataToSave));
+            showMessageBox('Progreso guardado con éxito!', 'success');
+        }
+
+        /**
+         * Retrieves all saved daily progress records from local storage.
+         * @returns {Array<Object>} An array of daily progress objects.
+         */
+        function getAllDailyRecords() {
+            const records = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith(HABIT_KEY_PREFIX) && key !== HABIT_DEFINITIONS_KEY) {
+                    try {
+                        records.push(JSON.parse(localStorage.getItem(key)));
+                    } catch (e) {
+                        console.error(`Error parsing local storage item ${key}:`, e);
+                    }
+                }
+            }
+            return records.sort((a, b) => new Date(a.date) - new Date(b.date));
+        }
+
+        // --- Dashboard Rendering ---
+
+        function renderDashboard() {
+            document.getElementById('current-date').textContent = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            renderHabits();
+            renderDailyTasks();
+            updateCompletionSummary();
+            updateBlockMeter();
+        }
+
+        function renderHabits() {
+            const habitsContainer = document.getElementById('habits-container');
+            habitsContainer.innerHTML = '';
+            
+            if (habitDefinitions.length === 0) {
+                habitsContainer.innerHTML = `
+                    <div class="col-span-full bg-white p-6 rounded-xl shadow-md text-center text-gray-500">
+                        <p>No tienes hábitos definidos. Añade uno para empezar!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const blocks = {};
+            habitDefinitions.forEach(habit => {
+                if (!blocks[habit.block]) {
+                    blocks[habit.block] = [];
+                }
+                blocks[habit.block].push(habit);
+            });
+
+            const sortedBlockNumbers = Object.keys(blocks).sort((a, b) => parseInt(a) - parseInt(b));
+
+            sortedBlockNumbers.forEach(blockNum => {
+                const blockHabits = blocks[blockNum];
+                const blockDiv = document.createElement('div');
+                blockDiv.className = 'bg-white p-6 rounded-xl shadow-md flex flex-col h-full';
+                blockDiv.innerHTML = `
+                    <h3 class="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">Bloque ${blockNum}</h3>
+                    <ul class="space-y-3 flex-grow"></ul>
+                `;
+                const ul = blockDiv.querySelector('ul');
+
+                blockHabits.forEach(definition => {
+                    const currentStatus = dailyHabitStatus.find(h => h.id === definition.id);
+                    const isCompleted = currentStatus ? currentStatus.completed : false;
+                    const li = document.createElement('li');
+                    li.className = 'flex items-center justify-between p-2 bg-gray-50 rounded-lg shadow-sm';
+                    li.innerHTML = `
+                        <label class="flex items-center cursor-pointer flex-grow">
+                            <input type="checkbox" data-id="${definition.id}" class="form-checkbox h-5 w-5 text-blue-600 rounded-md transition-colors duration-200" ${isCompleted ? 'checked' : ''}>
+                            <span class="ml-3 text-gray-800 text-lg">${definition.name} <span class="text-sm text-gray-500">(${definition.time || 'sin hora'})</span></span>
+                        </label>
+                        <div class="flex items-center space-x-2 ml-4">
+                            <button class="edit-habit-button text-blue-500 hover:text-blue-700 p-1 rounded-full hover:bg-blue-100 transition-colors duration-200" data-id="${definition.id}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="delete-habit-button text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100 transition-colors duration-200" data-id="${definition.id}">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    `;
+                    ul.appendChild(li);
+                });
+                habitsContainer.appendChild(blockDiv);
+            });
+
+            habitsContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', (event) => {
+                    const habitId = event.target.dataset.id;
+                    const isChecked = event.target.checked;
+                    const habit = dailyHabitStatus.find(h => h.id === habitId);
+                    if (habit) {
+                        habit.completed = isChecked;
+                        updateCompletionSummary();
+                        updateBlockMeter();
+                    }
+                });
+            });
+
+            habitsContainer.querySelectorAll('.edit-habit-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const habitId = event.currentTarget.dataset.id;
+                    openHabitModal('edit', habitId);
+                });
+            });
+
+            habitsContainer.querySelectorAll('.delete-habit-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const habitId = event.currentTarget.dataset.id;
+                    deleteHabit(habitId);
+                });
+            });
+        }
+
+        function renderDailyTasks() {
+            const dailyTasksList = document.getElementById('daily-tasks-list');
+            dailyTasksList.innerHTML = '';
+
+            if (dailyTasks.length === 0) {
+                dailyTasksList.innerHTML = '<li class="text-gray-500 text-center py-4">No hay tareas adicionales para hoy.</li>';
+                return;
+            }
+
+            dailyTasks.forEach(task => {
+                const li = document.createElement('li');
+                li.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg shadow-sm';
+                li.innerHTML = `
+                    <label class="flex items-center cursor-pointer flex-grow">
+                        <input type="checkbox" data-id="${task.id}" class="form-checkbox h-5 w-5 text-purple-600 rounded-md transition-colors duration-200" ${task.completed ? 'checked' : ''}>
+                        <span class="ml-3 text-gray-800 text-lg ${task.completed ? 'line-through text-gray-500' : ''}">${task.name}</span>
+                    </label>
+                    <button data-id="${task.id}" class="delete-task-button text-red-500 hover:text-red-700 ml-4 p-2 rounded-full hover:bg-red-100 transition-colors duration-200">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                `;
+                dailyTasksList.appendChild(li);
+            });
+
+            dailyTasksList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', (event) => {
+                    const taskId = event.target.dataset.id;
+                    const isChecked = event.target.checked;
+                    const taskIndex = dailyTasks.findIndex(t => t.id === taskId);
+                    if (taskIndex !== -1) {
+                        dailyTasks[taskIndex].completed = isChecked;
+                        renderDailyTasks();
+                    }
+                });
+            });
+
+            dailyTasksList.querySelectorAll('.delete-task-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const taskId = event.currentTarget.dataset.id;
+                    dailyTasks = dailyTasks.filter(task => task.id !== taskId);
+                    renderDailyTasks();
+                });
+            });
+        }
+
+        function updateCompletionSummary() {
+            const completedHabits = dailyHabitStatus.filter(h => h.completed).length;
+            const totalHabits = dailyHabitStatus.length;
+            const percentage = totalHabits > 0 ? ((completedHabits / totalHabits) * 100).toFixed(0) : 0;
+
+            document.getElementById('completion-percentage').textContent = `${percentage}%`;
+            document.getElementById('completion-count').textContent = `${completedHabits}/${totalHabits} Hábitos Completados`;
+            document.getElementById('progress-bar').style.width = `${percentage}%`;
+        }
+
+        function calculateCompletionPercentage() {
+            const completedHabits = dailyHabitStatus.filter(h => h.completed).length;
+            const totalHabits = dailyHabitStatus.length;
+            return totalHabits > 0 ? parseFloat(((completedHabits / totalHabits) * 100).toFixed(2)) : 0;
+        }
+
+        function calculateBlockStatus() {
+            const blockStatus = {};
+            const blocks = {};
+            dailyHabitStatus.forEach(habit => {
+                if (!blocks[habit.block]) {
+                    blocks[habit.block] = [];
+                }
+                blocks[habit.block].push(habit);
+            });
+
+            for (const blockNum in blocks) {
+                const blockHabits = blocks[blockNum];
+                const failedTasksInBlock = blockHabits.filter(h => !h.completed).length;
+                blockStatus[`block${blockNum}`] = (failedTasksInBlock < 2) ? 'completed' : 'failed';
+            }
+            return blockStatus;
+        }
+
+        function updateBlockMeter() {
+            const blockMeterContainer = document.getElementById('block-meter-container');
+            blockMeterContainer.innerHTML = '';
+
+            const currentBlockStatus = calculateBlockStatus();
+            const uniqueBlockNumbers = [...new Set(habitDefinitions.map(h => h.block))].sort((a, b) => a - b);
+
+            uniqueBlockNumbers.forEach(blockNum => {
+                const status = currentBlockStatus[`block${blockNum}`];
+                let iconClass = '';
+                let textColor = '';
+                let statusText = '';
+
+                if (status === 'completed') {
+                    iconClass = 'fa-check-circle text-green-500';
+                    textColor = 'text-green-700';
+                    statusText = 'Completado';
+                } else if (status === 'failed') {
+                    iconClass = 'fa-times-circle text-red-500';
+                    textColor = 'text-red-700';
+                    statusText = 'Fallido';
+                } else {
+                    iconClass = 'fa-question-circle text-gray-400';
+                    textColor = 'text-gray-500';
+                    statusText = 'Pendiente';
+                }
+
+                const blockMeterItem = document.createElement('div');
+                blockMeterItem.className = `flex items-center p-4 rounded-lg shadow-sm ${status === 'completed' ? 'bg-green-50' : status === 'failed' ? 'bg-red-50' : 'bg-gray-50'}`;
+                blockMeterItem.innerHTML = `
+                    <i class="fas ${iconClass} text-3xl mr-3"></i>
+                    <div>
+                        <p class="text-lg font-medium text-gray-800">Bloque ${blockNum}</p>
+                        <p class="text-sm ${textColor}">${statusText}</p>
+                    </div>
+                `;
+                blockMeterContainer.appendChild(blockMeterItem);
+            });
+        }
+
+
+        // --- Analysis Page Rendering ---
+
+        function renderAnalysis() {
+            const allRecords = getAllDailyRecords();
+            updateStreak(allRecords);
+            renderWeeklyStats(allRecords);
+            renderMonthlyStats(allRecords);
+        }
+
+        function updateStreak(allRecords) {
+            let streak = 0;
+            const sortedRecords = allRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            let lastDate = new Date();
+            lastDate.setHours(0, 0, 0, 0);
+
+            for (let i = 0; i < sortedRecords.length; i++) {
+                const record = sortedRecords[i];
+                const recordDate = new Date(record.date);
+                recordDate.setHours(0, 0, 0, 0);
+
+                const isConsecutive = (recordDate.getTime() === lastDate.getTime() || (lastDate.getTime() - recordDate.getTime()) === (1000 * 60 * 60 * 24));
+                const allBlocksCompleted = Object.values(record.blockStatus).every(status => status === 'completed');
+
+                if (isConsecutive && allBlocksCompleted) {
+                    streak++;
+                    lastDate = recordDate;
+                } else if (recordDate.getTime() < lastDate.getTime()) {
+                    break;
+                }
+            }
+            
+            // Adjust streak if today's record is present and completed
+            const todayRecord = sortedRecords.find(r => r.date === getCurrentDateKey());
+            if (todayRecord && Object.values(todayRecord.blockStatus).every(status => status === 'completed')) {
+                const sortedUniqueRecords = [...new Set(sortedRecords.map(r => r.date))].sort((a, b) => new Date(b) - new Date(a));
+                const todayIndex = sortedUniqueRecords.indexOf(getCurrentDateKey());
+                if (todayIndex === 0) {
+                    streak = 1;
+                    for (let i = 1; i < sortedUniqueRecords.length; i++) {
+                        const currentDate = new Date(sortedUniqueRecords[i - 1]);
+                        const previousDate = new Date(sortedUniqueRecords[i]);
+                        const diffInDays = (currentDate.getTime() - previousDate.getTime()) / (1000 * 60 * 60 * 24);
+                        if (diffInDays === 1) {
+                            const record = allRecords.find(r => r.date === sortedUniqueRecords[i]);
+                            if (record && Object.values(record.blockStatus).every(status => status === 'completed')) {
+                                streak++;
+                            } else {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+            document.getElementById('streak-count').textContent = streak;
+        }
+
+        function renderWeeklyStats(allRecords) {
+            const weeklyStatsBody = document.getElementById('weekly-stats-body');
+            weeklyStatsBody.innerHTML = '';
+            document.getElementById('no-weekly-data').classList.add('hidden');
+
+            const today = new Date();
+            const oneWeekAgo = new Date(today);
+            oneWeekAgo.setDate(today.getDate() - 7);
+
+            const weeklyRecords = allRecords.filter(record => {
+                const recordDate = new Date(record.date);
+                return recordDate >= oneWeekAgo && recordDate <= today;
+            });
+
+            if (weeklyRecords.length === 0) {
+                document.getElementById('no-weekly-data').classList.remove('hidden');
+                return;
+            }
+
+            weeklyRecords.forEach(record => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50';
+                const blocksCompletedCount = Object.values(record.blockStatus).filter(status => status === 'completed').length;
+                const totalBlocks = Object.keys(record.blockStatus).length;
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 whitespace-nowrap text-sm text-gray-800">${new Date(record.date).toLocaleDateString('es-ES')}</td>
+                    <td class="py-3 px-4 whitespace-nowrap text-sm text-gray-800">${record.totalHabitsCompleted}/${record.totalHabits}</td>
+                    <td class="py-3 px-4 whitespace-nowrap text-sm text-gray-800">${record.completionPercentage}%</td>
+                    <td class="py-3 px-4 whitespace-nowrap text-sm text-gray-800">${blocksCompletedCount}/${totalBlocks}</td>
+                `;
+                weeklyStatsBody.appendChild(tr);
+            });
+        }
+
+        function renderMonthlyStats(allRecords) {
+            const monthlyStatsBody = document.getElementById('monthly-stats-body');
+            monthlyStatsBody.innerHTML = '';
+            document.getElementById('no-monthly-data').classList.add('hidden');
+
+            const monthlyData = {};
+            allRecords.forEach(record => {
+                const recordDate = new Date(record.date);
+                const monthKey = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}`;
+
+                if (!monthlyData[monthKey]) {
+                    monthlyData[monthKey] = {
+                        totalHabitsCompleted: 0,
+                        totalHabits: 0,
+                        daysCount: 0
+                    };
+                }
+                monthlyData[monthKey].totalHabitsCompleted += record.totalHabitsCompleted;
+                monthlyData[monthKey].totalHabits += record.totalHabits;
+                monthlyData[monthKey].daysCount++;
+            });
+
+            const sortedMonths = Object.keys(monthlyData).sort();
+
+            if (sortedMonths.length === 0) {
+                document.getElementById('no-monthly-data').classList.remove('hidden');
+                return;
+            }
+
+            sortedMonths.forEach(monthKey => {
+                const data = monthlyData[monthKey];
+                const avgCompletion = data.daysCount > 0 ? ((data.totalHabitsCompleted / data.totalHabits) * 100).toFixed(2) : 0;
+                const monthName = new Date(monthKey).toLocaleDateString('es-ES', { year: 'numeric', month: 'long' });
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 whitespace-nowrap text-sm text-gray-800">${monthName}</td>
+                    <td class="py-3 px-4 whitespace-nowrap text-sm text-gray-800">${data.daysCount}</td>
+                    <td class="py-3 px-4 whitespace-nowrap text-sm text-gray-800">${(data.totalHabitsCompleted / data.daysCount).toFixed(1)}</td>
+                    <td class="py-3 px-4 whitespace-nowrap text-sm text-gray-800">${avgCompletion}%</td>
+                `;
+                monthlyStatsBody.appendChild(tr);
+            });
+        }
+
+
+        // --- Add/Edit Habit Modal and Logic ---
+
+        let currentHabitId = null;
+
+        function openHabitModal(mode, habitId = null) {
+            const modal = document.getElementById('habit-modal');
+            const title = document.getElementById('modal-title');
+            const nameInput = document.getElementById('habit-name');
+            const timeInput = document.getElementById('habit-time');
+            const blockSelect = document.getElementById('habit-block');
+            
+            currentHabitId = habitId;
+            nameInput.value = '';
+            timeInput.value = '';
+            blockSelect.value = '1';
+
+            if (mode === 'edit' && habitId) {
+                const habit = habitDefinitions.find(h => h.id === habitId);
+                if (habit) {
+                    title.textContent = 'Editar Hábito';
+                    nameInput.value = habit.name;
+                    timeInput.value = habit.time || '';
+                    blockSelect.value = habit.block;
+                }
+            } else {
+                title.textContent = 'Añadir Nuevo Hábito';
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeHabitModal() {
+            document.getElementById('habit-modal').classList.add('hidden');
+        }
+
+        function saveHabit() {
+            const name = document.getElementById('habit-name').value.trim();
+            const time = document.getElementById('habit-time').value;
+            const block = parseInt(document.getElementById('habit-block').value);
+
+            if (!name || isNaN(block)) {
+                showMessageBox('El nombre y el bloque del hábito son obligatorios.', 'error');
+                return;
+            }
+
+            if (currentHabitId) {
+                // Edit existing habit
+                const habitIndex = habitDefinitions.findIndex(h => h.id === currentHabitId);
+                if (habitIndex !== -1) {
+                    habitDefinitions[habitIndex].name = name;
+                    habitDefinitions[habitIndex].time = time;
+                    habitDefinitions[habitIndex].block = block;
+                }
+            } else {
+                // Add new habit
+                habitDefinitions.push({ id: crypto.randomUUID(), name, time, block });
+            }
+
+            saveHabitDefinitions();
+            closeHabitModal();
+            loadDailyProgress(); // Re-load to update dashboard with new habit definitions
+            showMessageBox('Hábito guardado con éxito!', 'success');
+        }
+
+        function deleteHabit(id) {
+            if (confirm('¿Estás seguro de que quieres eliminar este hábito?')) {
+                habitDefinitions = habitDefinitions.filter(h => h.id !== id);
+                saveHabitDefinitions();
+                loadDailyProgress();
+                showMessageBox('Hábito eliminado.', 'success');
+            }
+        }
+
+
+        // --- Event Listeners and Initialization ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const sidebar = document.getElementById('sidebar');
+            mobileMenuButton.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+            });
+
+            const navDashboard = document.getElementById('nav-dashboard');
+            const navAnalysis = document.getElementById('nav-analysis');
+            const dashboardSection = document.getElementById('dashboard-section');
+            const analysisSection = document.getElementById('analysis-section');
+            const addHabitButton = document.getElementById('add-habit-button');
+            const saveDayButton = document.getElementById('save-day-button');
+            const addDailyTaskButton = document.getElementById('add-task-button');
+            const habitForm = document.getElementById('habit-form');
+            const cancelHabitButton = document.getElementById('cancel-habit-button');
+            const newDailyTaskInput = document.getElementById('new-task-input');
+
+            function showSection(sectionToShow, navItemToActivate) {
+                document.querySelectorAll('section').forEach(section => section.classList.add('hidden'));
+                document.querySelectorAll('nav a').forEach(nav => nav.classList.remove('active-nav', 'bg-blue-600'));
+                sectionToShow.classList.remove('hidden');
+                navItemToActivate.classList.add('active-nav', 'bg-blue-600');
+                if (window.innerWidth < MOBILE_BREAKPOINT) {
+                    sidebar.classList.remove('open');
+                }
+            }
+
+            navDashboard.addEventListener('click', (e) => {
+                e.preventDefault();
+                showSection(dashboardSection, navDashboard);
+                loadDailyProgress();
+            });
+
+            navAnalysis.addEventListener('click', (e) => {
+                e.preventDefault();
+                showSection(analysisSection, navAnalysis);
+                renderAnalysis();
+            });
+
+            addHabitButton.addEventListener('click', () => {
+                openHabitModal('add');
+            });
+            
+            habitForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                saveHabit();
+            });
+
+            cancelHabitButton.addEventListener('click', closeHabitModal);
+            
+            addDailyTaskButton.addEventListener('click', () => {
+                const taskName = newDailyTaskInput.value.trim();
+                if (taskName) {
+                    dailyTasks.push({ id: crypto.randomUUID(), name: taskName, completed: false });
+                    newDailyTaskInput.value = '';
+                    renderDailyTasks();
+                } else {
+                    showMessageBox('Por favor, introduce una tarea.', 'info');
+                }
+            });
+
+            saveDayButton.addEventListener('click', saveDailyProgress);
+            
+            // Initial load
+            loadHabitDefinitions();
+            loadDailyProgress();
+        });
+    </script>
+</body>
+</html>
