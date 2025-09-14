@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #111827; /* bg-gray-900 */
+            color: #f9fafb; /* text-gray-50 */
+        }
+        .tab-btn.active {
+            background-color: #4f46e5; /* bg-indigo-600 */
+            color: #ffffff;
+        }
+        .habit-checkbox:checked {
+            background-color: #4f46e5;
+            border-color: #4f46e5;
+        }
+        .habit-checkbox:checked::before {
+            content: '✔';
+            color: white;
+            font-size: 12px;
+            text-align: center;
+            line-height: 18px;
+        }
+        .focus-item input:checked + label {
+            text-decoration: line-through;
+            color: #6b7280;
+        }
+        .pie-slice {
+            fill: none;
+            stroke-width: 20;
+            transform: rotate(-90deg);
+            transform-origin: center;
+            transition: stroke-dashoffset 0.5s ease-in-out;
+        }
+        .modal-overlay, .notes-container {
+            transition: opacity 0.3s ease;
+        }
+        /* Notes Styles */
+        #notes-editor {
+            outline: none;
+        }
+        #notes-editor p {
+            margin-bottom: 0.5em;
+        }
+        /* Desktop pop-up */
+        @media (min-width: 768px) {
+            .notes-container {
+                position: absolute;
+                top: 100%;
+                right: 0;
+                width: 350px;
+                max-height: 400px;
+                display: flex;
+                flex-direction: column;
+            }
+        }
+         /* Mobile modal */
+        @media (max-width: 767px) {
+            .notes-container {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100vw;
+                height: 100vh;
+                border-radius: 0;
+                display: flex;
+                flex-direction: column;
+            }
+            #notes-editor {
+                flex-grow: 1;
+                overflow-y: auto;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
+        <!-- Header -->
+        <header class="mb-6 flex justify-between items-center relative">
+            <div>
+                <h1 class="text-3xl sm:text-4xl font-bold text-white">Mi Dashboard Personal 🍃</h1>
+                <p class="text-gray-400 mt-1">Organiza tu trabajo, hábitos y finanzas en un solo lugar.</p>
+            </div>
+            <div class="relative">
+                <button id="notes-toggle-btn" class="text-3xl p-2 rounded-full hover:bg-gray-700 transition">📒</button>
+                <!-- Notes Pop-up/Modal -->
+                <div id="notes-container" class="notes-container z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl p-4 hidden opacity-0">
+                    <div class="flex justify-between items-center pb-2 border-b border-gray-700 mb-3">
+                        <div id="notes-toolbar" class="flex items-center space-x-2">
+                           <button data-command="bold" class="notes-tool-btn font-bold px-2 py-1 text-sm rounded hover:bg-gray-600">B</button>
+                           <button data-command="italic" class="notes-tool-btn italic px-2 py-1 text-sm rounded hover:bg-gray-600">I</button>
+                           <button data-command="insertUnorderedList" class="notes-tool-btn px-2 py-1 text-sm rounded hover:bg-gray-600">●</button>
+                           <div class="notes-emoji-menu relative">
+                               <button class="notes-tool-btn px-2 py-1 text-sm rounded hover:bg-gray-600">😀</button>
+                               <div class="notes-emoji-picker absolute top-full left-0 bg-gray-700 p-2 rounded-lg shadow-xl mt-2 hidden grid-cols-5 gap-2 w-max">
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">😀</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">💡</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">✅</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">🚀</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">📌</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">🔥</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">🎉</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">🤔</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">💪</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">❤️</span>
+                               </div>
+                           </div>
+                        </div>
+                        <button id="notes-close-btn" class="text-gray-400 hover:text-white">
+                           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                    <div id="notes-editor" contenteditable="true" class="flex-1 overflow-y-auto text-gray-300 text-sm p-1"></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="mb-6 bg-gray-800 rounded-lg p-2 flex space-x-2">
+            <button data-tab="work" class="tab-btn flex-1 py-2 px-4 rounded-md text-sm sm:text-base font-medium transition-colors duration-200">
+                Trabajo
+            </button>
+            <button data-tab="habits" class="tab-btn flex-1 py-2 px-4 rounded-md text-sm sm:text-base font-medium transition-colors duration-200">
+                Hábitos
+            </button>
+            <button data-tab="finance" class="tab-btn flex-1 py-2 px-4 rounded-md text-sm sm:text-base font-medium transition-colors duration-200">
+                Finanzas
+            </button>
+        </nav>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Work Dashboard Section -->
+            <section id="work-dashboard" class="tab-content space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Welcome & Pomodoro -->
+                    <div class="lg:col-span-2 bg-gray-800 p-6 rounded-lg shadow-lg">
+                        <h2 class="text-xl sm:text-2xl font-semibold mb-1">¡Hola! Bienvenido de nuevo. 👋🏻</h2>
+                        <p class="text-gray-400 mb-6">Listo para un día productivo?</p>
+                        
+                        <div class="text-center bg-gray-900 p-8 rounded-lg">
+                            <h3 class="text-lg font-medium text-gray-300 mb-4">Cuanto tiempo necesitas? ⏰</h3>
+                            <p id="timer-display" class="text-6xl sm:text-7xl font-bold tracking-tighter">25:00</p>
+                            <div class="flex flex-wrap justify-center gap-2 mt-4">
+                                <button data-time="300" class="pomodoro-time-btn px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-md hover:bg-indigo-500/40 transition">5 min</button>
+                                <button data-time="600" class="pomodoro-time-btn px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-md hover:bg-indigo-500/40 transition">10 min</button>
+                                <button data-time="1500" class="pomodoro-time-btn px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-md hover:bg-indigo-500/40 transition">25 min</button>
+                                <button data-time="1800" class="pomodoro-time-btn px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-md hover:bg-indigo-500/40 transition">30 min</button>
+                                <button data-time="3600" class="pomodoro-time-btn px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-md hover:bg-indigo-500/40 transition">60 min</button>
+                            </div>
+                            <div class="mt-6 flex flex-col sm:flex-row items-center justify-center sm:space-x-4 space-y-3 sm:space-y-0 w-full max-w-lg mx-auto">
+                                <button id="start-pause-btn" class="w-full sm:w-auto px-8 py-3 bg-indigo-600 rounded-lg font-semibold hover:bg-indigo-700 transition">Empezar</button>
+                                <button id="reset-btn" class="w-full sm:w-auto px-8 py-3 bg-gray-700 rounded-lg font-semibold hover:bg-gray-600 transition">Reiniciar</button>
+                                <button id="open-break-modal-btn" class="w-full sm:w-auto px-8 py-3 bg-emerald-600 rounded-lg font-semibold hover:bg-emerald-700 transition">Un descanso? 🪴</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Focus & YouTube -->
+                    <div class="space-y-6">
+                        <div class="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+                           <iframe style="border-radius:12px" width="100%" height="352" src="https://www.youtube.com/embed/videoseries?si=6MJhRKUueZwlN2We&amp;list=PLZ7jJpwZsBzDmshgatrFVX3jIvoQmnWtN" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                        </div>
+                        <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                            <h3 class="text-lg font-semibold mb-4">¿En qué nos vamos a enfocar ahora?</h3>
+                            <div id="focus-list" class="space-y-3 mb-4"></div>
+                            <div class="flex space-x-2">
+                                <input id="new-focus-input" type="text" placeholder="Añadir nuevo enfoque..." class="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <button id="add-focus-btn" class="px-3 py-2 bg-indigo-600 rounded-md hover:bg-indigo-700 transition text-sm font-semibold">Añadir</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Habit Tracker Section -->
+            <section id="habits-dashboard" class="tab-content hidden space-y-6">
+                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-gray-800 p-6 rounded-lg shadow-lg">
+                        <h2 class="text-xl sm:text-2xl font-semibold mb-4">Tracker de Hábitos</h2>
+                        <div class="flex space-x-2 mb-4">
+                            <input id="new-habit-input" type="text" placeholder="Añadir nuevo hábito..." class="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <button id="add-habit-btn" class="px-5 py-2 bg-indigo-600 rounded-md hover:bg-indigo-700 transition font-semibold">Añadir</button>
+                        </div>
+                        <div id="habit-list" class="space-y-3"></div>
+                    </div>
+                    <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                        <h3 class="text-lg sm:text-xl font-semibold mb-4">Analíticas Semanales</h3>
+                        <div id="habit-analytics" class="space-y-4">
+                            <div>
+                                <p class="font-medium">Completado General</p>
+                                <div class="w-full bg-gray-700 rounded-full h-2.5 mt-1">
+                                    <div id="habit-progress-bar" class="bg-green-500 h-2.5 rounded-full" style="width: 0%"></div>
+                                </div>
+                                <p id="habit-progress-text" class="text-right text-sm text-gray-400 mt-1">0%</p>
+                            </div>
+                            <div>
+                                <p class="font-medium mb-2">Completados por Día</p>
+                                <div id="daily-completion-chart" class="flex justify-center items-center bg-gray-900/50 p-4 rounded-md min-h-[10rem]">
+                                    <!-- Chart will be generated by JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                 </div>
+            </section>
+
+            <!-- Finance Tracker Section -->
+            <section id="finance-dashboard" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Budget and Transactions -->
+                    <div class="lg:col-span-2 bg-gray-800 p-6 rounded-lg shadow-lg">
+                        <h2 class="text-xl sm:text-2xl font-semibold mb-4">Tracker de Finanzas</h2>
+                        <!-- Budget Setup -->
+                        <div class="mb-6">
+                            <label for="budget-input" class="block text-sm font-medium text-gray-300">Presupuesto Mensual</label>
+                            <div class="mt-1 flex space-x-2">
+                                <input type="number" id="budget-input" placeholder="Ej: 1000" class="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                <button id="set-budget-btn" class="px-5 py-2 bg-indigo-600 rounded-md hover:bg-indigo-700 transition font-semibold">Fijar</button>
+                            </div>
+                        </div>
+
+                        <!-- Add Transaction -->
+                        <div class="mb-6">
+                            <h3 class="text-base sm:text-lg font-medium mb-2">Añadir Transacción</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                                <input id="transaction-desc" type="text" placeholder="Descripción" class="sm:col-span-2 bg-gray-700 border-gray-600 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                <input id="transaction-amount" type="number" placeholder="Monto" class="bg-gray-700 border-gray-600 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                <select id="transaction-type" class="bg-gray-700 border-gray-600 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="expense">Gasto</option>
+                                    <option value="income">Ingreso</option>
+                                </select>
+                                <button id="add-transaction-btn" class="sm:col-span-1 px-5 py-2 bg-indigo-600 rounded-md hover:bg-indigo-700 transition font-semibold">Añadir</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Transaction List -->
+                        <div>
+                           <h3 class="text-base sm:text-lg font-medium mb-2">Transacciones Recientes</h3>
+                           <div id="transaction-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div>
+                        </div>
+                    </div>
+                    <!-- Financial Analytics -->
+                    <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                        <h3 class="text-lg sm:text-xl font-semibold mb-4">Resumen Financiero</h3>
+                        <div class="space-y-4">
+                            <div class="p-4 bg-gray-900/50 rounded-lg">
+                                <p class="text-sm text-gray-400">Balance Restante</p>
+                                <p id="remaining-balance" class="text-2xl font-bold text-green-400">$0.00</p>
+                            </div>
+                             <div class="p-4 bg-gray-900/50 rounded-lg">
+                                <p class="text-sm text-gray-400">Presupuesto</p>
+                                <p id="budget-display" class="text-xl font-semibold">$0.00</p>
+                            </div>
+                             <div class="p-4 bg-gray-900/50 rounded-lg">
+                                <p class="text-sm text-gray-400">Ingresos</p>
+                                <p id="total-income" class="text-xl font-semibold text-green-400">$0.00</p>
+                            </div>
+                             <div class="p-4 bg-gray-900/50 rounded-lg">
+                                <p class="text-sm text-gray-400">Gastos</p>
+                                <p id="total-expenses" class="text-xl font-semibold text-red-400">$0.00</p>
+                            </div>
+                        </div>
+                        <div class="mt-6">
+                            <p class="font-medium mb-2">Ingresos vs Gastos</p>
+                            <div class="w-full bg-gray-700 rounded-full h-4">
+                               <div id="finance-bar" class="bg-green-500 h-4 rounded-l-full" style="width: 50%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Break Timer Modal -->
+    <div id="break-modal-overlay" class="modal-overlay fixed inset-0 bg-black/70 flex items-center justify-center p-4 hidden opacity-0">
+        <div id="break-modal-content" class="bg-emerald-600 text-white p-8 rounded-lg shadow-2xl w-full max-w-md relative text-center">
+            <button id="close-break-modal-btn" class="absolute top-3 right-3 text-emerald-100 hover:text-white transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            <h3 class="text-xl font-semibold mb-4">Es hora de un descanso</h3>
+            <p id="break-timer-display" class="text-7xl font-bold tracking-tighter">05:00</p>
+            <div class="flex flex-wrap justify-center gap-2 mt-4">
+                <button data-time="300" class="break-time-btn px-3 py-1 bg-emerald-500/50 text-emerald-100 rounded-md hover:bg-emerald-500/80 transition">5 min</button>
+                <button data-time="600" class="break-time-btn px-3 py-1 bg-emerald-500/50 text-emerald-100 rounded-md hover:bg-emerald-500/80 transition">10 min</button>
+                <button data-time="900" class="break-time-btn px-3 py-1 bg-emerald-500/50 text-emerald-100 rounded-md hover:bg-emerald-500/80 transition">15 min</button>
+                <button data-time="1800" class="break-time-btn px-3 py-1 bg-emerald-500/50 text-emerald-100 rounded-md hover:bg-emerald-500/80 transition">30 min</button>
+            </div>
+            <div class="mt-6 flex items-center justify-center space-x-4 w-full max-w-xs mx-auto">
+                <button id="start-pause-break-btn" class="w-full px-8 py-3 bg-white text-emerald-600 rounded-lg font-semibold hover:bg-emerald-50 transition">Empezar</button>
+                <button id="reset-break-btn" class="w-full px-8 py-3 bg-emerald-700 rounded-lg font-semibold hover:bg-emerald-800 transition">Reiniciar</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- STATE MANAGEMENT ---
+            const initialState = {
+                activeTab: 'work',
+                pomodoro: {
+                    sessionTime: 1500, // 25 minutes in seconds
+                    timeLeft: 1500,
+                    isRunning: false,
+                    timerId: null
+                },
+                breakTimer: {
+                    sessionTime: 300, // 5 minutes default
+                    timeLeft: 300,
+                    isRunning: false,
+                    timerId: null
+                },
+                focusAreas: [
+                    { text: 'Finalizar reporte', completed: false },
+                    { text: 'Revisar emails', completed: true },
+                ],
+                habits: [
+                    { name: 'Leer 10 páginas', days: [true, false, true, false, false, true, false] },
+                    { name: 'Hacer ejercicio', days: [true, true, false, true, true, false, false] },
+                ],
+                finance: {
+                    budget: 1500,
+                    transactions: [
+                        { id: 1, desc: 'Salario', amount: 2000, type: 'income' },
+                        { id: 2, desc: 'Alquiler', amount: 800, type: 'expense' },
+                        { id: 3, desc: 'Supermercado', amount: 150, type: 'expense' }
+                    ]
+                },
+                notes: '<p>Escribe tus <b>notas</b> aquí...</p><p>Puedes usar la barra de herramientas. ✅</p>'
+            };
+
+            let state = JSON.parse(localStorage.getItem('dashboardState')) || initialState;
+
+            const saveState = () => {
+                localStorage.setItem('dashboardState', JSON.stringify(state));
+            };
+
+            // --- DOM ELEMENTS ---
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            // Work Dashboard
+            const timerDisplay = document.getElementById('timer-display');
+            const startPauseBtn = document.getElementById('start-pause-btn');
+            const resetBtn = document.getElementById('reset-btn');
+            const timeSelectBtns = document.querySelectorAll('.pomodoro-time-btn');
+            const focusList = document.getElementById('focus-list');
+            const newFocusInput = document.getElementById('new-focus-input');
+            const addFocusBtn = document.getElementById('add-focus-btn');
+            
+            // Break Modal
+            const openBreakModalBtn = document.getElementById('open-break-modal-btn');
+            const breakModalOverlay = document.getElementById('break-modal-overlay');
+            const closeBreakModalBtn = document.getElementById('close-break-modal-btn');
+            const breakTimerDisplay = document.getElementById('break-timer-display');
+            const breakTimeSelectBtns = document.querySelectorAll('.break-time-btn');
+            const startPauseBreakBtn = document.getElementById('start-pause-break-btn');
+            const resetBreakBtn = document.getElementById('reset-break-btn');
+
+            // Notes
+            const notesToggleBtn = document.getElementById('notes-toggle-btn');
+            const notesContainer = document.getElementById('notes-container');
+            const notesCloseBtn = document.getElementById('notes-close-btn');
+            const notesEditor = document.getElementById('notes-editor');
+            const notesToolbar = document.getElementById('notes-toolbar');
+            const emojiMenuBtn = document.querySelector('.notes-emoji-menu button');
+            const emojiPicker = document.querySelector('.notes-emoji-picker');
+
+            // Habits
+            const newHabitInput = document.getElementById('new-habit-input');
+            const addHabitBtn = document.getElementById('add-habit-btn');
+            const habitList = document.getElementById('habit-list');
+            const habitProgressBar = document.getElementById('habit-progress-bar');
+            const habitProgressText = document.getElementById('habit-progress-text');
+            const dailyCompletionChart = document.getElementById('daily-completion-chart');
+
+            // Finance
+            const budgetInput = document.getElementById('budget-input');
+            const setBudgetBtn = document.getElementById('set-budget-btn');
+            const transactionDesc = document.getElementById('transaction-desc');
+            const transactionAmount = document.getElementById('transaction-amount');
+            const transactionType = document.getElementById('transaction-type');
+            const addTransactionBtn = document.getElementById('add-transaction-btn');
+            const transactionList = document.getElementById('transaction-list');
+            const remainingBalanceEl = document.getElementById('remaining-balance');
+            const budgetDisplayEl = document.getElementById('budget-display');
+            const totalIncomeEl = document.getElementById('total-income');
+            const totalExpensesEl = document.getElementById('total-expenses');
+            const financeBarEl = document.getElementById('finance-bar');
+
+            // --- RENDER FUNCTIONS ---
+            const render = () => {
+                renderTabs();
+                renderPomodoro();
+                renderBreakTimer();
+                renderFocusList();
+                renderHabitList();
+                renderHabitAnalytics();
+                renderFinance();
+                renderNotes();
+            };
+            
+            const formatTime = (seconds) => {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            };
+
+            // --- TABS ---
+            const renderTabs = () => {
+                tabContents.forEach(content => content.classList.add('hidden'));
+                document.getElementById(`${state.activeTab}-dashboard`).classList.remove('hidden');
+
+                tabButtons.forEach(button => {
+                    if (button.dataset.tab === state.activeTab) {
+                        button.classList.add('active');
+                    } else {
+                        button.classList.remove('active');
+                    }
+                });
+            };
+            
+            // --- NOTES ---
+            const renderNotes = () => {
+                if (notesEditor.innerHTML !== state.notes) {
+                    notesEditor.innerHTML = state.notes;
+                }
+            };
+            
+            const toggleNotes = (show) => {
+                if(show) {
+                    notesContainer.classList.remove('hidden');
+                    setTimeout(() => notesContainer.classList.remove('opacity-0'), 10);
+                } else {
+                    notesContainer.classList.add('opacity-0');
+                    setTimeout(() => notesContainer.classList.add('hidden'), 300);
+                }
+            }
+
+
+            // --- POMODORO ---
+            const renderPomodoro = () => {
+                timerDisplay.textContent = formatTime(state.pomodoro.timeLeft);
+                startPauseBtn.textContent = state.pomodoro.isRunning ? 'Pausar' : 'Empezar';
+            };
+
+            const updateTimer = () => {
+                if (state.pomodoro.timeLeft > 0) {
+                    state.pomodoro.timeLeft--;
+                    renderPomodoro();
+                } else {
+                    clearInterval(state.pomodoro.timerId);
+                    state.pomodoro.isRunning = false;
+                    state.pomodoro.timeLeft = state.pomodoro.sessionTime;
+                    renderPomodoro();
+                    new Audio('https://www.soundjay.com/buttons/sounds/button-1.mp3').play();
+                }
+            };
+
+             // --- BREAK TIMER ---
+            const renderBreakTimer = () => {
+                breakTimerDisplay.textContent = formatTime(state.breakTimer.timeLeft);
+                startPauseBreakBtn.textContent = state.breakTimer.isRunning ? 'Pausar' : 'Empezar';
+            };
+
+            const updateBreakTimer = () => {
+                if (state.breakTimer.timeLeft > 0) {
+                    state.breakTimer.timeLeft--;
+                    renderBreakTimer();
+                } else {
+                    clearInterval(state.breakTimer.timerId);
+                    state.breakTimer.isRunning = false;
+                    state.breakTimer.timeLeft = state.breakTimer.sessionTime;
+                    renderBreakTimer();
+                    new Audio('https://www.soundjay.com/buttons/sounds/button-1.mp3').play();
+                }
+            };
+            
+            // --- FOCUS LIST ---
+            const renderFocusList = () => {
+                focusList.innerHTML = '';
+                state.focusAreas.forEach((area, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'focus-item flex items-center bg-gray-700/50 p-2 rounded-md';
+                    item.innerHTML = `
+                        <input id="focus-${index}" type="checkbox" data-index="${index}" class="h-4 w-4 rounded border-gray-500 text-indigo-600 focus:ring-indigo-500" ${area.completed ? 'checked' : ''}>
+                        <label for="focus-${index}" class="ml-3 block text-sm font-medium text-gray-200 flex-1">${area.text}</label>
+                        <button data-index="${index}" class="delete-focus-btn text-gray-500 hover:text-red-400">&times;</button>
+                    `;
+                    focusList.appendChild(item);
+                });
+            };
+
+            // --- HABITS ---
+            const renderHabitList = () => {
+                habitList.innerHTML = '';
+                state.habits.forEach((habit, index) => {
+                    const daysOfWeek = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+                    const checkboxesHTML = daysOfWeek.map((day, dayIndex) => `
+                        <div class="text-center">
+                            <span class="text-xs text-gray-400">${day}</span>
+                            <input type="checkbox" data-habit-index="${index}" data-day-index="${dayIndex}" 
+                                class="habit-checkbox h-5 w-5 mt-1 appearance-none rounded border-2 border-gray-600 bg-gray-700 cursor-pointer transition" 
+                                ${habit.days[dayIndex] ? 'checked' : ''}>
+                        </div>
+                    `).join('');
+
+                    const item = document.createElement('div');
+                    item.className = 'bg-gray-700/50 p-4 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between';
+                    item.innerHTML = `
+                        <div class="flex-1 mb-3 sm:mb-0 mr-4">
+                            <span class="font-medium">${habit.name}</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="flex flex-wrap gap-1 sm:gap-2">${checkboxesHTML}</div>
+                            <button data-index="${index}" class="delete-habit-btn ml-6 text-gray-500 hover:text-red-400 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                    habitList.appendChild(item);
+                });
+            };
+
+            const renderHabitAnalytics = () => {
+                const totalHabits = state.habits.length;
+                if (totalHabits === 0) {
+                    habitProgressBar.style.width = '0%';
+                    habitProgressText.textContent = 'Añade hábitos para empezar';
+                    dailyCompletionChart.innerHTML = '<p class="text-center w-full text-gray-500">Sin datos</p>';
+                    return;
+                }
+                
+                const totalPossible = totalHabits * 7;
+                const totalCompleted = state.habits.reduce((sum, habit) => sum + habit.days.filter(Boolean).length, 0);
+                const percentage = totalPossible > 0 ? Math.round((totalCompleted / totalPossible) * 100) : 0;
+                
+                habitProgressBar.style.width = `${percentage}%`;
+                habitProgressText.textContent = `${percentage}% Completado`;
+
+                const dayLabels = ['Lunes', 'Martes', 'Miérc.', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+                const colors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e', '#3b82f6', '#8b5cf6'];
+                const dailyCompletions = Array(7).fill(0);
+                state.habits.forEach(habit => {
+                    habit.days.forEach((done, dayIndex) => {
+                        if (done) dailyCompletions[dayIndex]++;
+                    });
+                });
+
+                const totalWeeklyCompletions = dailyCompletions.reduce((sum, count) => sum + count, 0);
+
+                if (totalWeeklyCompletions === 0) {
+                    dailyCompletionChart.innerHTML = '<p class="text-center w-full text-gray-500">Completa hábitos para ver el gráfico</p>';
+                    return;
+                }
+
+                const radius = 50;
+                const circumference = 2 * Math.PI * radius;
+                let offset = 0;
+
+                const svgSlices = dailyCompletions.map((completions, i) => {
+                    if (completions === 0) return '';
+                    const percentage = completions / totalWeeklyCompletions;
+                    const dash = percentage * circumference;
+                    const slice = `<circle class="pie-slice" cx="60" cy="60" r="${radius}" stroke-dasharray="${dash} ${circumference}" style="stroke-dashoffset: -${offset}; stroke: ${colors[i]}" />`;
+                    offset += dash;
+                    return slice;
+                }).join('');
+
+                const legendItems = dayLabels.map((label, i) => `
+                    <div class="flex items-center text-xs">
+                        <span class="w-3 h-3 rounded-full mr-2" style="background-color: ${colors[i]}"></span>
+                        <span class="text-gray-300">${label}:</span>
+                        <span class="font-semibold ml-1.5">${dailyCompletions[i]}</span>
+                    </div>
+                `).join('');
+
+                dailyCompletionChart.innerHTML = `
+                    <div class="flex flex-col sm:flex-row items-center justify-start sm:justify-around gap-4 w-full">
+                        <div class="relative w-28 h-28 flex-shrink-0">
+                             <svg viewBox="0 0 120 120" class="w-full h-full">
+                                <circle cx="60" cy="60" r="${radius}" fill="none" stroke="#374151" stroke-width="20" /> <!-- bg-gray-700 -->
+                                ${svgSlices}
+                             </svg>
+                             <div class="absolute inset-0 flex items-center justify-center">
+                                <div class="text-center">
+                                    <span class="text-2xl font-bold">${totalWeeklyCompletions}</span>
+                                    <span class="text-xs block text-gray-400 -mt-1">Total</span>
+                                </div>
+                             </div>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-1 gap-x-6 gap-y-2">
+                            ${legendItems}
+                        </div>
+                    </div>
+                `;
+            };
+
+            // --- FINANCE ---
+            const formatCurrency = (amount) => {
+                return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+            };
+
+            const renderFinance = () => {
+                const { budget, transactions } = state.finance;
+                const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+                const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+                const remainingBalance = budget + totalIncome - totalExpenses;
+                
+                remainingBalanceEl.textContent = formatCurrency(remainingBalance);
+                remainingBalanceEl.className = `text-2xl font-bold ${remainingBalance >= 0 ? 'text-green-400' : 'text-red-400'}`;
+                budgetDisplayEl.textContent = formatCurrency(budget);
+                totalIncomeEl.textContent = formatCurrency(totalIncome);
+                totalExpensesEl.textContent = formatCurrency(totalExpenses);
+
+                const totalBudgetAndIncome = budget + totalIncome;
+                const expensePercentage = totalBudgetAndIncome > 0 ? (totalExpenses / totalBudgetAndIncome) * 100 : 0;
+                const incomePercentage = 100 - expensePercentage;
+                financeBarEl.style.width = `${incomePercentage < 0 ? 0 : incomePercentage}%`;
+
+                transactionList.innerHTML = transactions.slice().reverse().map(t => `
+                    <div class="flex justify-between items-center p-2 rounded-md ${t.type === 'income' ? 'bg-green-500/10' : 'bg-red-500/10'}">
+                        <span>${t.desc}</span>
+                        <div class="flex items-center space-x-3">
+                           <span class="font-medium ${t.type === 'income' ? 'text-green-400' : 'text-red-400'}">${t.type === 'expense' ? '-' : ''}${formatCurrency(t.amount)}</span>
+                           <button data-id="${t.id}" class="delete-transaction-btn text-gray-500 hover:text-red-400">&times;</button>
+                        </div>
+                    </div>
+                `).join('');
+            };
+
+            // --- EVENT LISTENERS ---
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    state.activeTab = button.dataset.tab;
+                    saveState();
+                    renderTabs();
+                });
+            });
+
+            // Notes Listeners
+            notesToggleBtn.addEventListener('click', () => toggleNotes(true));
+            notesCloseBtn.addEventListener('click', () => toggleNotes(false));
+            
+            notesEditor.addEventListener('input', () => {
+                state.notes = notesEditor.innerHTML;
+                saveState();
+            });
+
+            // Use mousedown for commands to avoid focus shift from editor
+            notesToolbar.addEventListener('mousedown', e => {
+                const toolButton = e.target.closest('.notes-tool-btn');
+                if (toolButton && toolButton.dataset.command) {
+                    // This is a command button (bold, italic, list)
+                    e.preventDefault(); // Prevent the button from taking focus
+                    document.execCommand(toolButton.dataset.command, false, null);
+                    // Manually trigger state save, as 'input' might not fire
+                    state.notes = notesEditor.innerHTML;
+                    saveState();
+                }
+            });
+
+            // Use click for menu toggles like the emoji picker
+            notesToolbar.addEventListener('click', e => {
+                 const toolButton = e.target.closest('.notes-tool-btn');
+                 // Check if the clicked button is the emoji menu toggle
+                 if (toolButton && !toolButton.dataset.command) {
+                    emojiPicker.classList.toggle('hidden');
+                    emojiPicker.classList.toggle('grid');
+                 }
+            });
+
+            emojiPicker.addEventListener('click', (e) => {
+                if (e.target.tagName === 'SPAN') {
+                    notesEditor.focus();
+                    document.execCommand('insertText', false, e.target.textContent);
+                    emojiPicker.classList.add('hidden');
+                    emojiPicker.classList.remove('grid');
+                    state.notes = notesEditor.innerHTML; // Save state after emoji insertion
+                    saveState();
+                }
+            });
+
+
+            // Pomodoro listeners
+            startPauseBtn.addEventListener('click', () => {
+                if (state.pomodoro.isRunning) {
+                    clearInterval(state.pomodoro.timerId);
+                } else {
+                    state.pomodoro.timerId = setInterval(updateTimer, 1000);
+                }
+                state.pomodoro.isRunning = !state.pomodoro.isRunning;
+                saveState();
+                renderPomodoro();
+            });
+
+            resetBtn.addEventListener('click', () => {
+                clearInterval(state.pomodoro.timerId);
+                state.pomodoro.isRunning = false;
+                state.pomodoro.timeLeft = state.pomodoro.sessionTime;
+                saveState();
+                renderPomodoro();
+            });
+
+            timeSelectBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const newTime = parseInt(btn.dataset.time, 10);
+                    clearInterval(state.pomodoro.timerId);
+                    state.pomodoro.isRunning = false;
+                    state.pomodoro.sessionTime = newTime;
+                    state.pomodoro.timeLeft = newTime;
+                    saveState();
+                    renderPomodoro();
+                });
+            });
+
+            // Break Modal Listeners
+            openBreakModalBtn.addEventListener('click', () => {
+                if (state.pomodoro.isRunning) {
+                     clearInterval(state.pomodoro.timerId);
+                     state.pomodoro.isRunning = false;
+                     renderPomodoro();
+                }
+                breakModalOverlay.classList.remove('hidden');
+                setTimeout(() => breakModalOverlay.classList.remove('opacity-0'), 10);
+            });
+
+            const closeBreakModal = () => {
+                breakModalOverlay.classList.add('opacity-0');
+                setTimeout(() => breakModalOverlay.classList.add('hidden'), 300);
+            };
+
+            closeBreakModalBtn.addEventListener('click', closeBreakModal);
+            breakModalOverlay.addEventListener('click', (e) => {
+                if (e.target === breakModalOverlay) {
+                    closeBreakModal();
+                }
+            });
+            
+            startPauseBreakBtn.addEventListener('click', () => {
+                if (state.breakTimer.isRunning) {
+                    clearInterval(state.breakTimer.timerId);
+                } else {
+                    state.breakTimer.timerId = setInterval(updateBreakTimer, 1000);
+                }
+                state.breakTimer.isRunning = !state.breakTimer.isRunning;
+                saveState();
+                renderBreakTimer();
+            });
+
+            resetBreakBtn.addEventListener('click', () => {
+                clearInterval(state.breakTimer.timerId);
+                state.breakTimer.isRunning = false;
+                state.breakTimer.timeLeft = state.breakTimer.sessionTime;
+                saveState();
+                renderBreakTimer();
+            });
+
+            breakTimeSelectBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const newTime = parseInt(btn.dataset.time, 10);
+                    clearInterval(state.breakTimer.timerId);
+                    state.breakTimer.isRunning = false;
+                    state.breakTimer.sessionTime = newTime;
+                    state.breakTimer.timeLeft = newTime;
+                    saveState();
+                    renderBreakTimer();
+                });
+            });
+
+
+            // Focus listeners
+            addFocusBtn.addEventListener('click', () => {
+                const text = newFocusInput.value.trim();
+                if (text) {
+                    state.focusAreas.push({ text, completed: false });
+                    newFocusInput.value = '';
+                    saveState();
+                    renderFocusList();
+                }
+            });
+
+            focusList.addEventListener('click', (e) => {
+                const index = e.target.dataset.index;
+                if (e.target.type === 'checkbox') {
+                    state.focusAreas[index].completed = e.target.checked;
+                }
+                if (e.target.classList.contains('delete-focus-btn')) {
+                    state.focusAreas.splice(index, 1);
+                }
+                saveState();
+                renderFocusList();
+            });
+            
+            // Habit listeners
+            addHabitBtn.addEventListener('click', () => {
+                const name = newHabitInput.value.trim();
+                if (name) {
+                    state.habits.push({ name, days: Array(7).fill(false) });
+                    newHabitInput.value = '';
+                    saveState();
+                    renderHabitList();
+                    renderHabitAnalytics();
+                }
+            });
+
+            habitList.addEventListener('click', (e) => {
+                let stateChanged = false;
+                const deleteButton = e.target.closest('.delete-habit-btn');
+
+                if (deleteButton) {
+                    state.habits.splice(deleteButton.dataset.index, 1);
+                    stateChanged = true;
+                }
+                
+                if (e.target.classList.contains('habit-checkbox')) {
+                    const { habitIndex, dayIndex } = e.target.dataset;
+                    state.habits[habitIndex].days[dayIndex] = e.target.checked;
+                    stateChanged = true;
+                }
+
+                if (stateChanged) {
+                    saveState();
+                    renderHabitList();
+                    renderHabitAnalytics();
+                }
+            });
+
+            // Finance listeners
+            setBudgetBtn.addEventListener('click', () => {
+                const budget = parseFloat(budgetInput.value);
+                if (!isNaN(budget) && budget >= 0) {
+                    state.finance.budget = budget;
+                    budgetInput.value = '';
+                    saveState();
+                    renderFinance();
+                }
+            });
+
+            addTransactionBtn.addEventListener('click', () => {
+                const desc = transactionDesc.value.trim();
+                const amount = parseFloat(transactionAmount.value);
+                const type = transactionType.value;
+
+                if (desc && !isNaN(amount) && amount > 0) {
+                    state.finance.transactions.push({ id: Date.now(), desc, amount, type });
+                    transactionDesc.value = '';
+                    transactionAmount.value = '';
+                    saveState();
+                    renderFinance();
+                }
+            });
+
+            transactionList.addEventListener('click', (e) => {
+                if (e.target.classList.contains('delete-transaction-btn')) {
+                    const id = parseInt(e.target.dataset.id, 10);
+                    state.finance.transactions = state.finance.transactions.filter(t => t.id !== id);
+                    saveState();
+                    renderFinance();
+                }
+            });
+
+            // --- INITIALIZATION ---
+            render();
+        });
+    </script>
+</body>
+</html>
+
+
+
+
