@@ -92,7 +92,20 @@
                 <h1 class="text-3xl sm:text-4xl font-bold text-white">Mi Dashboard Personal 🍃</h1>
                 <p class="text-gray-400 mt-1">Organiza tu trabajo, hábitos y finanzas en un solo lugar.</p>
             </div>
-            <div class="relative">
+            <div class="relative flex items-center space-x-2">
+                <!-- Import/Export Buttons -->
+                <button id="import-btn" title="Importar datos" class="p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                </button>
+                <button id="export-btn" title="Exportar datos" class="p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition">
+                   <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                </button>
+                <input type="file" id="import-file-input" class="hidden" accept=".json">
+
                 <button id="notes-toggle-btn" class="text-3xl p-2 rounded-full hover:bg-gray-700 transition">📒</button>
                 <!-- Notes Pop-up/Modal -->
                 <div id="notes-container" class="notes-container z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl p-4 hidden opacity-0">
@@ -364,6 +377,11 @@
             const newFocusInput = document.getElementById('new-focus-input');
             const addFocusBtn = document.getElementById('add-focus-btn');
             
+            // Import/Export
+            const importBtn = document.getElementById('import-btn');
+            const exportBtn = document.getElementById('export-btn');
+            const importFileInput = document.getElementById('import-file-input');
+
             // Break Modal
             const openBreakModalBtn = document.getElementById('open-break-modal-btn');
             const breakModalOverlay = document.getElementById('break-modal-overlay');
@@ -878,14 +896,56 @@
                 }
             });
 
+            // Import/Export Listeners
+            exportBtn.addEventListener('click', () => {
+                const dataStr = JSON.stringify(state, null, 2); // Pretty print JSON
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `dashboard-data-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+
+            importBtn.addEventListener('click', () => {
+                importFileInput.click();
+            });
+
+            importFileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const importedState = JSON.parse(event.target.result);
+                        // Basic validation to check if it's a valid state file
+                        if (importedState && importedState.pomodoro && importedState.habits && importedState.finance) {
+                            state = importedState;
+                            saveState();
+                            render();
+                            alert('¡Datos importados con éxito!');
+                        } else {
+                            alert('El archivo no parece ser un archivo de datos válido.');
+                        }
+                    } catch (error) {
+                        console.error('Error parsing JSON:', error);
+                        alert('Error al leer el archivo. Asegúrate de que es un archivo JSON válido.');
+                    }
+                };
+                reader.readAsText(file);
+                // Reset input to allow importing the same file again
+                e.target.value = null; 
+            });
+
+
             // --- INITIALIZATION ---
             render();
         });
     </script>
 </body>
 </html>
-
-
-
-
 
