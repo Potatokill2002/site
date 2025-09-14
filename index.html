@@ -18,6 +18,10 @@
             background-color: #4f46e5; /* bg-indigo-600 */
             color: #ffffff;
         }
+        .todo-tab-btn.active {
+            border-color: #4f46e5; /* border-indigo-600 */
+            color: #ffffff;
+        }
         .habit-checkbox:checked {
             background-color: #4f46e5;
             border-color: #4f46e5;
@@ -50,6 +54,12 @@
         #notes-editor p {
             margin-bottom: 0.5em;
         }
+        /* To-do Dragging Styles */
+        .todo-item.dragging {
+            opacity: 0.5;
+            background-color: #4f46e5;
+        }
+
         /* Desktop pop-up */
         @media (min-width: 768px) {
             .notes-container {
@@ -185,16 +195,68 @@
                         <div class="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
                            <iframe style="border-radius:12px" width="100%" height="352" src="https://www.youtube.com/embed/videoseries?si=6MJhRKUueZwlN2We&amp;list=PLZ7jJpwZsBzDmshgatrFVX3jIvoQmnWtN" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
                         </div>
-                        <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                        <div id="focus-container" class="bg-gray-800 p-6 rounded-lg shadow-lg">
                             <h3 class="text-lg font-semibold mb-4">¿En qué nos vamos a enfocar ahora?</h3>
-                            <div id="focus-list" class="space-y-3 mb-4"></div>
-                            <div class="flex space-x-2">
-                                <input id="new-focus-input" type="text" placeholder="Añadir nuevo enfoque..." class="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
-                                <button id="add-focus-btn" class="px-3 py-2 bg-indigo-600 rounded-md hover:bg-indigo-700 transition text-sm font-semibold">Añadir</button>
+                            <div id="focus-list" class="space-y-3 min-h-[8rem] bg-gray-900/50 p-3 rounded-md border-2 border-dashed border-gray-700">
+                                <!-- Focus items will be dragged here -->
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- To-Do List Section -->
+                <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                    <h2 class="text-xl sm:text-2xl font-semibold">Gestor de Tareas</h2>
+                    
+                    <!-- To-Do Sub-Navigation -->
+                    <nav class="my-4 border-b border-gray-700 flex">
+                        <button data-todotab="general" class="todo-tab-btn flex-1 py-2 px-4 text-sm font-medium text-center border-b-2 border-transparent hover:border-gray-400 hover:text-gray-200 transition">Lista de Tareas</button>
+                        <button data-todotab="routine" class="todo-tab-btn flex-1 py-2 px-4 text-sm font-medium text-center border-b-2 border-transparent hover:border-gray-400 hover:text-gray-200 transition">Tareas Rutinarias</button>
+                    </nav>
+
+                    <!-- Add/Edit Task Form -->
+                    <form id="todo-form" class="bg-gray-900 p-4 rounded-md mb-6 space-y-3">
+                        <input type="hidden" id="todo-id-input">
+                        <input id="todo-text-input" type="text" placeholder="Describe la tarea..." class="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <select id="todo-day-select" class="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="L">Lunes</option>
+                                <option value="M">Martes</option>
+                                <option value="X">Miércoles</option>
+                                <option value="J">Jueves</option>
+                                <option value="V">Viernes</option>
+                                <option value="S">Sábado</option>
+                                <option value="D">Domingo</option>
+                            </select>
+                             <select id="todo-importance-select" class="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="baja">Baja Importancia</option>
+                                <option value="media">Media Importancia</option>
+                                <option value="alta">Alta Importancia</option>
+                            </select>
+                            <input id="todo-pomodoros-input" type="number" min="1" placeholder="N° Pomodoros" class="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                             <select id="todo-duration-select" class="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="300">5 min</option>
+                                <option value="600">10 min</option>
+                                <option value="1500" selected>25 min</option>
+                                <option value="1800">30 min</option>
+                                <option value="3600">60 min</option>
+                            </select>
+                        </div>
+                        <div class="flex justify-end space-x-2">
+                             <button id="cancel-edit-todo-btn" type="button" class="px-4 py-2 bg-gray-600 rounded-md hover:bg-gray-700 transition text-sm font-semibold hidden">Cancelar</button>
+                             <button id="add-todo-btn" type="button" class="px-4 py-2 bg-indigo-600 rounded-md hover:bg-indigo-700 transition text-sm font-semibold">Añadir Tarea</button>
+                        </div>
+                    </form>
+
+                    <!-- Task Lists Container -->
+                    <div id="todo-general-content" class="todo-tab-content">
+                        <div id="todo-list" class="space-y-2"></div>
+                    </div>
+                    <div id="todo-routine-content" class="todo-tab-content hidden">
+                        <div id="routine-todo-list" class="space-y-2"></div>
+                    </div>
+                </div>
+
             </section>
 
             <!-- Habit Tracker Section -->
@@ -327,6 +389,7 @@
             // --- STATE MANAGEMENT ---
             const initialState = {
                 activeTab: 'work',
+                activeTodoTab: 'general', // 'general' or 'routine'
                 pomodoro: {
                     sessionTime: 1500, // 25 minutes in seconds
                     timeLeft: 1500,
@@ -339,9 +402,15 @@
                     isRunning: false,
                     timerId: null
                 },
-                focusAreas: [
-                    { text: 'Finalizar reporte', completed: false },
-                    { text: 'Revisar emails', completed: true },
+                focusAreas: [1], // Contains IDs of tasks from the 'todos' array
+                todos: [
+                    { id: 1, text: 'Diseñar el mockup de la landing page', day: 'L', importance: 'alta', pomodoros: 4, pomodoroDuration: 1500, completed: false },
+                    { id: 2, text: 'Reunión de equipo semanal', day: 'M', importance: 'media', pomodoros: 2, pomodoroDuration: 1800, completed: true },
+                    { id: 3, text: 'Actualizar reporte de progreso', day: 'V', importance: 'baja', pomodoros: 1, pomodoroDuration: 3600, completed: false }
+                ],
+                routineTodos: [
+                    { id: 101, text: 'Revisar correos importantes', day: 'L', pomodoros: 1, pomodoroDuration: 1500, completed: false },
+                    { id: 102, text: 'Planificar el día siguiente', day: 'M', pomodoros: 1, pomodoroDuration: 1500, completed: false }
                 ],
                 habits: [
                     { name: 'Leer 10 páginas', days: [true, false, true, false, false, true, false] },
@@ -364,6 +433,9 @@
                 localStorage.setItem('dashboardState', JSON.stringify(state));
             };
 
+            // --- CONSTANTS ---
+            const dayMap = { 'L': 'Lunes', 'M': 'Martes', 'X': 'Miércoles', 'J': 'Jueves', 'V': 'Viernes', 'S': 'Sábado', 'D': 'Domingo' };
+
             // --- DOM ELEMENTS ---
             const tabButtons = document.querySelectorAll('.tab-btn');
             const tabContents = document.querySelectorAll('.tab-content');
@@ -373,10 +445,24 @@
             const startPauseBtn = document.getElementById('start-pause-btn');
             const resetBtn = document.getElementById('reset-btn');
             const timeSelectBtns = document.querySelectorAll('.pomodoro-time-btn');
+            const focusContainer = document.getElementById('focus-container');
             const focusList = document.getElementById('focus-list');
-            const newFocusInput = document.getElementById('new-focus-input');
-            const addFocusBtn = document.getElementById('add-focus-btn');
             
+            // To-Do List
+            const todoTabButtons = document.querySelectorAll('.todo-tab-btn');
+            const todoTabContents = document.querySelectorAll('.todo-tab-content');
+            const todoForm = document.getElementById('todo-form');
+            const todoList = document.getElementById('todo-list');
+            const routineTodoList = document.getElementById('routine-todo-list');
+            const todoIdInput = document.getElementById('todo-id-input');
+            const todoTextInput = document.getElementById('todo-text-input');
+            const todoDaySelect = document.getElementById('todo-day-select');
+            const todoImportanceSelect = document.getElementById('todo-importance-select');
+            const todoPomodorosInput = document.getElementById('todo-pomodoros-input');
+            const todoDurationSelect = document.getElementById('todo-duration-select');
+            const addTodoBtn = document.getElementById('add-todo-btn');
+            const cancelEditTodoBtn = document.getElementById('cancel-edit-todo-btn');
+
             // Import/Export
             const importBtn = document.getElementById('import-btn');
             const exportBtn = document.getElementById('export-btn');
@@ -428,6 +514,9 @@
                 renderPomodoro();
                 renderBreakTimer();
                 renderFocusList();
+                renderTodoTabs();
+                renderTodos();
+                renderRoutineTodos();
                 renderHabitList();
                 renderHabitAnalytics();
                 renderFinance();
@@ -446,11 +535,7 @@
                 document.getElementById(`${state.activeTab}-dashboard`).classList.remove('hidden');
 
                 tabButtons.forEach(button => {
-                    if (button.dataset.tab === state.activeTab) {
-                        button.classList.add('active');
-                    } else {
-                        button.classList.remove('active');
-                    }
+                    button.classList.toggle('active', button.dataset.tab === state.activeTab);
                 });
             };
             
@@ -513,15 +598,112 @@
             // --- FOCUS LIST ---
             const renderFocusList = () => {
                 focusList.innerHTML = '';
-                state.focusAreas.forEach((area, index) => {
+
+                if (state.focusAreas.length === 0) {
+                    focusList.innerHTML = `<p class="text-center text-gray-500 text-sm mt-8">Arrastra hasta 3 tareas aquí para enfocarte.</p>`;
+                } else {
+                    const importanceStyles = {
+                        baja: { border: 'border-l-green-500' },
+                        media: { border: 'border-l-yellow-500' },
+                        alta: { border: 'border-l-red-500' },
+                    };
+
+                    state.focusAreas.forEach(todoId => {
+                        const todo = state.todos.find(t => t.id === todoId) || state.routineTodos.find(t => t.id === todoId);
+                        if (!todo) return; // Skip if todo was deleted
+
+                        const importance = importanceStyles[todo.importance] || { border: 'border-l-cyan-500' }; // Default for routine
+
+                        const item = document.createElement('div');
+                        item.className = `flex items-center justify-between bg-gray-700 p-2.5 rounded-md border-l-4 ${importance.border}`;
+                        item.innerHTML = `
+                            <p class="text-sm font-medium flex-1 mr-2 ${todo.completed ? 'line-through text-gray-500' : ''}">${todo.text}</p>
+                            <div class="flex items-center space-x-2 flex-shrink-0">
+                                <span class="text-xs flex items-center bg-gray-800 px-2 py-0.5 rounded-full" title="${todo.pomodoros} pomodoros">
+                                    <span class="mr-1">🍅</span>
+                                    <span>${todo.pomodoros}</span>
+                                </span>
+                                <button title="Completar" data-id="${todo.id}" class="complete-focus-btn text-gray-400 hover:text-green-400 transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+                                </button>
+                                <button data-id="${todo.id}" class="delete-focus-btn text-gray-500 hover:text-red-400">&times;</button>
+                            </div>
+                        `;
+                        focusList.appendChild(item);
+                    });
+                }
+            };
+            
+            // --- TO-DO LIST (General + Routine) ---
+            const renderTodoTabs = () => {
+                todoTabContents.forEach(content => content.classList.add('hidden'));
+                document.getElementById(`todo-${state.activeTodoTab}-content`).classList.remove('hidden');
+
+                todoTabButtons.forEach(button => {
+                    button.classList.toggle('active', button.dataset.todotab === state.activeTodoTab);
+                });
+
+                todoImportanceSelect.style.display = state.activeTodoTab === 'routine' ? 'none' : 'block';
+            };
+
+            const renderTodos = () => {
+                todoList.innerHTML = '';
+                const importanceStyles = {
+                    baja: { text: 'Baja', bg: 'bg-green-500/20', textC: 'text-green-300' },
+                    media: { text: 'Media', bg: 'bg-yellow-500/20', textC: 'text-yellow-300' },
+                    alta: { text: 'Alta', bg: 'bg-red-500/20', textC: 'text-red-300' },
+                };
+
+                state.todos.forEach(todo => {
                     const item = document.createElement('div');
-                    item.className = 'focus-item flex items-center bg-gray-700/50 p-2 rounded-md';
+                    item.className = 'todo-item bg-gray-700/50 p-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-move';
+                    item.setAttribute('draggable', 'true');
+                    item.dataset.id = todo.id;
+                    const importance = importanceStyles[todo.importance] || importanceStyles.media;
+
                     item.innerHTML = `
-                        <input id="focus-${index}" type="checkbox" data-index="${index}" class="h-4 w-4 rounded border-gray-500 text-indigo-600 focus:ring-indigo-500" ${area.completed ? 'checked' : ''}>
-                        <label for="focus-${index}" class="ml-3 block text-sm font-medium text-gray-200 flex-1">${area.text}</label>
-                        <button data-index="${index}" class="delete-focus-btn text-gray-500 hover:text-red-400">&times;</button>
+                        <div class="flex-1">
+                            <p class="font-medium ${todo.completed ? 'line-through text-gray-500' : ''}">${todo.text}</p>
+                            <div class="flex items-center gap-x-3 gap-y-1 text-xs text-gray-400 mt-2 flex-wrap">
+                                <span class="px-2 py-0.5 rounded-full font-semibold ${importance.bg} ${importance.textC}">${importance.text}</span>
+                                <span>Día: <span class="font-semibold text-gray-300">${dayMap[todo.day] || todo.day}</span></span>
+                                <span>Pomodoros: <span class="font-semibold text-gray-300">${todo.pomodoros} x ${todo.pomodoroDuration / 60}min</span></span>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2 flex-shrink-0 self-end sm:self-center">
+                           <button title="Completar" data-id="${todo.id}" class="toggle-todo-btn p-2 text-gray-400 hover:text-green-400 transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></button>
+                           <button title="Editar" data-id="${todo.id}" class="edit-todo-btn p-2 text-gray-400 hover:text-yellow-400 transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>
+                           <button title="Eliminar" data-id="${todo.id}" class="delete-todo-btn p-2 text-gray-400 hover:text-red-400 transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg></button>
+                        </div>
                     `;
-                    focusList.appendChild(item);
+                    todoList.appendChild(item);
+                });
+            };
+            
+            const renderRoutineTodos = () => {
+                routineTodoList.innerHTML = '';
+                state.routineTodos.forEach(todo => {
+                    const item = document.createElement('div');
+                    item.className = 'todo-item bg-gray-700/50 p-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-move';
+                    item.setAttribute('draggable', 'true');
+                    item.dataset.id = todo.id;
+
+                    item.innerHTML = `
+                        <div class="flex-1">
+                            <p class="font-medium ${todo.completed ? 'line-through text-gray-500' : ''}">${todo.text}</p>
+                            <div class="flex items-center gap-x-3 gap-y-1 text-xs text-gray-400 mt-2 flex-wrap">
+                                <span class="px-2 py-0.5 rounded-full font-semibold bg-cyan-500/20 text-cyan-300">Rutinaria</span>
+                                <span>Día: <span class="font-semibold text-gray-300">${dayMap[todo.day] || todo.day}</span></span>
+                                <span>Pomodoros: <span class="font-semibold text-gray-300">${todo.pomodoros} x ${todo.pomodoroDuration / 60}min</span></span>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2 flex-shrink-0 self-end sm:self-center">
+                           <button title="Completar" data-id="${todo.id}" class="toggle-todo-btn p-2 text-gray-400 hover:text-green-400 transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></button>
+                           <button title="Editar" data-id="${todo.id}" class="edit-todo-btn p-2 text-gray-400 hover:text-yellow-400 transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>
+                           <button title="Eliminar" data-id="${todo.id}" class="delete-todo-btn p-2 text-gray-400 hover:text-red-400 transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg></button>
+                        </div>
+                    `;
+                    routineTodoList.appendChild(item);
                 });
             };
 
@@ -687,10 +869,8 @@
             notesToolbar.addEventListener('mousedown', e => {
                 const toolButton = e.target.closest('.notes-tool-btn');
                 if (toolButton && toolButton.dataset.command) {
-                    // This is a command button (bold, italic, list)
-                    e.preventDefault(); // Prevent the button from taking focus
+                    e.preventDefault(); 
                     document.execCommand(toolButton.dataset.command, false, null);
-                    // Manually trigger state save, as 'input' might not fire
                     state.notes = notesEditor.innerHTML;
                     saveState();
                 }
@@ -699,7 +879,6 @@
             // Use click for menu toggles like the emoji picker
             notesToolbar.addEventListener('click', e => {
                  const toolButton = e.target.closest('.notes-tool-btn');
-                 // Check if the clicked button is the emoji menu toggle
                  if (toolButton && !toolButton.dataset.command) {
                     emojiPicker.classList.toggle('hidden');
                     emojiPicker.classList.toggle('grid');
@@ -712,7 +891,7 @@
                     document.execCommand('insertText', false, e.target.textContent);
                     emojiPicker.classList.add('hidden');
                     emojiPicker.classList.remove('grid');
-                    state.notes = notesEditor.innerHTML; // Save state after emoji insertion
+                    state.notes = notesEditor.innerHTML; 
                     saveState();
                 }
             });
@@ -806,28 +985,236 @@
 
 
             // Focus listeners
-            addFocusBtn.addEventListener('click', () => {
-                const text = newFocusInput.value.trim();
-                if (text) {
-                    state.focusAreas.push({ text, completed: false });
-                    newFocusInput.value = '';
+            focusList.addEventListener('dragover', e => {
+                e.preventDefault();
+                if (state.focusAreas.length < 3) {
+                    focusList.classList.add('bg-indigo-500/10');
+                }
+            });
+
+            focusList.addEventListener('dragleave', () => {
+                focusList.classList.remove('bg-indigo-500/10');
+            });
+            
+            focusList.addEventListener('drop', e => {
+                e.preventDefault();
+                focusList.classList.remove('bg-indigo-500/10');
+                
+                if (draggedItemId && state.focusAreas.length < 3 && !state.focusAreas.includes(draggedItemId)) {
+                    state.focusAreas.push(draggedItemId);
                     saveState();
                     renderFocusList();
+                } else if (state.focusAreas.length >= 3) {
+                    alert('Solo puedes enfocarte en un máximo de 3 tareas a la vez.');
                 }
             });
 
             focusList.addEventListener('click', (e) => {
-                const index = e.target.dataset.index;
-                if (e.target.type === 'checkbox') {
-                    state.focusAreas[index].completed = e.target.checked;
+                const deleteBtn = e.target.closest('.delete-focus-btn');
+                const completeBtn = e.target.closest('.complete-focus-btn');
+
+                if (deleteBtn) {
+                    const idToRemove = parseInt(deleteBtn.dataset.id, 10);
+                    state.focusAreas = state.focusAreas.filter(id => id !== idToRemove);
+                    saveState();
+                    renderFocusList();
                 }
-                if (e.target.classList.contains('delete-focus-btn')) {
-                    state.focusAreas.splice(index, 1);
+
+                if (completeBtn) {
+                    const idToComplete = parseInt(completeBtn.dataset.id, 10);
+                    let todo = state.todos.find(t => t.id === idToComplete);
+                    if (!todo) {
+                        todo = state.routineTodos.find(t => t.id === idToComplete);
+                    }
+
+                    if (todo) {
+                        todo.completed = true;
+                    }
+                    // Also remove from focus list after completing
+                    state.focusAreas = state.focusAreas.filter(id => id !== idToComplete);
+                    saveState();
+                    renderFocusList();
+                    renderTodos();
+                    renderRoutineTodos();
                 }
-                saveState();
-                renderFocusList();
             });
             
+            // To-Do Listeners
+            todoTabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    state.activeTodoTab = button.dataset.todotab;
+                    renderTodoTabs();
+                });
+            });
+
+            const resetTodoForm = () => {
+                todoForm.reset();
+                todoIdInput.value = '';
+                addTodoBtn.textContent = 'Añadir Tarea';
+                cancelEditTodoBtn.classList.add('hidden');
+            };
+
+            addTodoBtn.addEventListener('click', () => {
+                const id = todoIdInput.value;
+                const text = todoTextInput.value.trim();
+                const pomodoros = parseInt(todoPomodorosInput.value, 10);
+
+                if (!text || isNaN(pomodoros) || pomodoros < 1) {
+                    alert('Por favor, completa la descripción y un número válido de pomodoros.');
+                    return;
+                }
+                
+                const taskData = {
+                    text,
+                    day: todoDaySelect.value,
+                    importance: state.activeTodoTab === 'routine' ? null : todoImportanceSelect.value,
+                    pomodoros,
+                    pomodoroDuration: parseInt(todoDurationSelect.value, 10),
+                };
+
+                const targetArray = state.activeTodoTab === 'routine' ? state.routineTodos : state.todos;
+
+                if (id) {
+                    const numericId = parseInt(id, 10);
+                    const index = targetArray.findIndex(t => t.id === numericId);
+                    if (index > -1) {
+                        targetArray[index] = { ...targetArray[index], ...taskData };
+                    }
+                } else {
+                    targetArray.push({ ...taskData, id: Date.now(), completed: false });
+                }
+                
+                resetTodoForm();
+                saveState();
+                renderTodos();
+                renderRoutineTodos();
+                renderFocusList();
+            });
+
+            cancelEditTodoBtn.addEventListener('click', resetTodoForm);
+
+            const handleTodoListClick = (e, listType) => {
+                const button = e.target.closest('button');
+                if (!button) return;
+                
+                const id = parseInt(button.dataset.id, 10);
+                let stateModified = false;
+                const sourceArray = state[listType];
+                
+                if (button.classList.contains('delete-todo-btn')) {
+                    const originalLength = sourceArray.length;
+                    state[listType] = sourceArray.filter(t => t.id !== id);
+                    if(state[listType].length < originalLength) stateModified = true;
+
+                    const originalFocusLength = state.focusAreas.length;
+                    state.focusAreas = state.focusAreas.filter(focusId => focusId !== id);
+                    if(state.focusAreas.length < originalFocusLength) stateModified = true;
+
+                } else if (button.classList.contains('edit-todo-btn')) {
+                    const todo = sourceArray.find(t => t.id === id);
+                    if (todo) {
+                        todoIdInput.value = todo.id;
+                        todoTextInput.value = todo.text;
+                        todoDaySelect.value = todo.day;
+                        if (todo.importance) {
+                            todoImportanceSelect.value = todo.importance;
+                        }
+                        todoPomodorosInput.value = todo.pomodoros;
+                        todoDurationSelect.value = todo.pomodoroDuration;
+                        addTodoBtn.textContent = 'Guardar Cambios';
+                        cancelEditTodoBtn.classList.remove('hidden');
+                        todoTextInput.focus();
+                    }
+                } else if (button.classList.contains('toggle-todo-btn')) {
+                    const todo = sourceArray.find(t => t.id === id);
+                    if (todo) {
+                        todo.completed = !todo.completed;
+                        stateModified = true;
+                    }
+                }
+                
+                if (stateModified) {
+                    saveState();
+                    renderTodos();
+                    renderRoutineTodos();
+                    renderFocusList();
+                }
+            };
+            
+            todoList.addEventListener('click', (e) => handleTodoListClick(e, 'todos'));
+            routineTodoList.addEventListener('click', (e) => handleTodoListClick(e, 'routineTodos'));
+
+
+            // Drag and Drop for To-dos
+            let draggedItemId = null;
+            const handleDragStart = (e) => {
+                draggedItemId = parseInt(e.target.dataset.id, 10);
+                e.target.classList.add('dragging');
+            };
+            const handleDragEnd = (e) => {
+                e.target.classList.remove('dragging');
+                draggedItemId = null;
+            };
+
+            const handleDragOver = (e, container) => {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(container, e.clientY);
+                const draggingElement = document.querySelector('.dragging');
+                if (afterElement == null) {
+                    container.appendChild(draggingElement);
+                } else {
+                    container.insertBefore(draggingElement, afterElement);
+                }
+            };
+
+            const handleDrop = (e, listType) => {
+                e.preventDefault();
+                const sourceArray = state[listType];
+                const afterElement = getDragAfterElement(e.currentTarget, e.clientY);
+                const draggedIndex = sourceArray.findIndex(t => t.id === draggedItemId);
+                
+                if (draggedIndex < 0) return;
+
+                const [draggedItem] = sourceArray.splice(draggedIndex, 1);
+                
+                if (afterElement == null) {
+                    sourceArray.push(draggedItem);
+                } else {
+                    const afterId = parseInt(afterElement.dataset.id, 10);
+                    const afterIndex = sourceArray.findIndex(t => t.id === afterId);
+                    sourceArray.splice(afterIndex, 0, draggedItem);
+                }
+                
+                saveState();
+                renderTodos();
+                renderRoutineTodos();
+            };
+
+            todoList.addEventListener('dragstart', handleDragStart);
+            routineTodoList.addEventListener('dragstart', handleDragStart);
+            todoList.addEventListener('dragend', handleDragEnd);
+            routineTodoList.addEventListener('dragend', handleDragEnd);
+
+            todoList.addEventListener('dragover', (e) => handleDragOver(e, todoList));
+            routineTodoList.addEventListener('dragover', (e) => handleDragOver(e, routineTodoList));
+            
+            todoList.addEventListener('drop', (e) => handleDrop(e, 'todos'));
+            routineTodoList.addEventListener('drop', (e) => handleDrop(e, 'routineTodos'));
+
+            function getDragAfterElement(container, y) {
+                const draggableElements = [...container.querySelectorAll('.todo-item:not(.dragging)')];
+                return draggableElements.reduce((closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = y - box.top - box.height / 2;
+                    if (offset < 0 && offset > closest.offset) {
+                        return { offset: offset, element: child };
+                    } else {
+                        return closest;
+                    }
+                }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }
+
+
             // Habit listeners
             addHabitBtn.addEventListener('click', () => {
                 const name = newHabitInput.value.trim();
@@ -898,7 +1285,7 @@
 
             // Import/Export Listeners
             exportBtn.addEventListener('click', () => {
-                const dataStr = JSON.stringify(state, null, 2); // Pretty print JSON
+                const dataStr = JSON.stringify(state, null, 2); 
                 const blob = new Blob([dataStr], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -922,7 +1309,6 @@
                 reader.onload = (event) => {
                     try {
                         const importedState = JSON.parse(event.target.result);
-                        // Basic validation to check if it's a valid state file
                         if (importedState && importedState.pomodoro && importedState.habits && importedState.finance) {
                             state = importedState;
                             saveState();
@@ -937,7 +1323,6 @@
                     }
                 };
                 reader.readAsText(file);
-                // Reset input to allow importing the same file again
                 e.target.value = null; 
             });
 
