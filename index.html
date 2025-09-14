@@ -7,10 +7,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Poppins', sans-serif;
             background-color: #111827; /* bg-gray-900 */
             color: #f9fafb; /* text-gray-50 */
         }
@@ -33,15 +33,97 @@
             text-decoration: line-through;
             color: #6b7280;
         }
+        .pie-slice {
+            fill: none;
+            stroke-width: 20;
+            transform: rotate(-90deg);
+            transform-origin: center;
+            transition: stroke-dashoffset 0.5s ease-in-out;
+        }
+        .modal-overlay, .notes-container {
+            transition: opacity 0.3s ease;
+        }
+        /* Notes Styles */
+        #notes-editor {
+            outline: none;
+        }
+        #notes-editor p {
+            margin-bottom: 0.5em;
+        }
+        /* Desktop pop-up */
+        @media (min-width: 768px) {
+            .notes-container {
+                position: absolute;
+                top: 100%;
+                right: 0;
+                width: 350px;
+                max-height: 400px;
+                display: flex;
+                flex-direction: column;
+            }
+        }
+         /* Mobile modal */
+        @media (max-width: 767px) {
+            .notes-container {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100vw;
+                height: 100vh;
+                border-radius: 0;
+                display: flex;
+                flex-direction: column;
+            }
+            #notes-editor {
+                flex-grow: 1;
+                overflow-y: auto;
+            }
+        }
     </style>
 </head>
 <body class="antialiased">
 
     <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
         <!-- Header -->
-        <header class="mb-6">
-            <h1 class="text-3xl sm:text-4xl font-bold text-white">Mi Dashboard Personal</h1>
-            <p class="text-gray-400 mt-1">Organiza tu trabajo, hábitos y finanzas en un solo lugar.</p>
+        <header class="mb-6 flex justify-between items-center relative">
+            <div>
+                <h1 class="text-3xl sm:text-4xl font-bold text-white">Mi Dashboard Personal 🍃</h1>
+                <p class="text-gray-400 mt-1">Organiza tu trabajo, hábitos y finanzas en un solo lugar.</p>
+            </div>
+            <div class="relative">
+                <button id="notes-toggle-btn" class="text-3xl p-2 rounded-full hover:bg-gray-700 transition">📒</button>
+                <!-- Notes Pop-up/Modal -->
+                <div id="notes-container" class="notes-container z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl p-4 hidden opacity-0">
+                    <div class="flex justify-between items-center pb-2 border-b border-gray-700 mb-3">
+                        <div id="notes-toolbar" class="flex items-center space-x-2">
+                           <button data-command="bold" class="notes-tool-btn font-bold px-2 py-1 text-sm rounded hover:bg-gray-600">B</button>
+                           <button data-command="italic" class="notes-tool-btn italic px-2 py-1 text-sm rounded hover:bg-gray-600">I</button>
+                           <button data-command="insertUnorderedList" class="notes-tool-btn px-2 py-1 text-sm rounded hover:bg-gray-600">●</button>
+                           <div class="notes-emoji-menu relative">
+                               <button class="notes-tool-btn px-2 py-1 text-sm rounded hover:bg-gray-600">😀</button>
+                               <div class="notes-emoji-picker absolute top-full left-0 bg-gray-700 p-2 rounded-lg shadow-xl mt-2 hidden grid-cols-5 gap-2 w-max">
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">😀</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">💡</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">✅</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">🚀</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">📌</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">🔥</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">🎉</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">🤔</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">💪</span>
+                                   <span class="cursor-pointer p-1 hover:bg-gray-600 rounded">❤️</span>
+                               </div>
+                           </div>
+                        </div>
+                        <button id="notes-close-btn" class="text-gray-400 hover:text-white">
+                           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                    <div id="notes-editor" contenteditable="true" class="flex-1 overflow-y-auto text-gray-300 text-sm p-1"></div>
+                </div>
+            </div>
         </header>
 
         <!-- Navigation -->
@@ -64,19 +146,23 @@
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <!-- Welcome & Pomodoro -->
                     <div class="lg:col-span-2 bg-gray-800 p-6 rounded-lg shadow-lg">
-                        <h2 class="text-xl sm:text-2xl font-semibold mb-1">¡Hola! Bienvenido de nuevo.</h2>
+                        <h2 class="text-xl sm:text-2xl font-semibold mb-1">¡Hola! Bienvenido de nuevo. 👋🏻</h2>
                         <p class="text-gray-400 mb-6">Listo para un día productivo?</p>
                         
                         <div class="text-center bg-gray-900 p-8 rounded-lg">
+                            <h3 class="text-lg font-medium text-gray-300 mb-4">Cuanto tiempo necesitas? ⏰</h3>
                             <p id="timer-display" class="text-6xl sm:text-7xl font-bold tracking-tighter">25:00</p>
                             <div class="flex flex-wrap justify-center gap-2 mt-4">
+                                <button data-time="300" class="pomodoro-time-btn px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-md hover:bg-indigo-500/40 transition">5 min</button>
+                                <button data-time="600" class="pomodoro-time-btn px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-md hover:bg-indigo-500/40 transition">10 min</button>
                                 <button data-time="1500" class="pomodoro-time-btn px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-md hover:bg-indigo-500/40 transition">25 min</button>
                                 <button data-time="1800" class="pomodoro-time-btn px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-md hover:bg-indigo-500/40 transition">30 min</button>
-                                <button data-time="3000" class="pomodoro-time-btn px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-md hover:bg-indigo-500/40 transition">50 min</button>
+                                <button data-time="3600" class="pomodoro-time-btn px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-md hover:bg-indigo-500/40 transition">60 min</button>
                             </div>
-                            <div class="mt-6 flex flex-col sm:flex-row items-center justify-center sm:space-x-4 space-y-3 sm:space-y-0 w-full max-w-xs mx-auto">
+                            <div class="mt-6 flex flex-col sm:flex-row items-center justify-center sm:space-x-4 space-y-3 sm:space-y-0 w-full max-w-lg mx-auto">
                                 <button id="start-pause-btn" class="w-full sm:w-auto px-8 py-3 bg-indigo-600 rounded-lg font-semibold hover:bg-indigo-700 transition">Empezar</button>
                                 <button id="reset-btn" class="w-full sm:w-auto px-8 py-3 bg-gray-700 rounded-lg font-semibold hover:bg-gray-600 transition">Reiniciar</button>
+                                <button id="open-break-modal-btn" class="w-full sm:w-auto px-8 py-3 bg-emerald-600 rounded-lg font-semibold hover:bg-emerald-700 transition">Un descanso? 🪴</button>
                             </div>
                         </div>
                     </div>
@@ -121,8 +207,8 @@
                             </div>
                             <div>
                                 <p class="font-medium mb-2">Completados por Día</p>
-                                <div id="daily-completion-chart" class="flex justify-between items-end h-32 bg-gray-900/50 p-2 rounded-md">
-                                    <!-- Bars will be generated by JS -->
+                                <div id="daily-completion-chart" class="flex justify-center items-center bg-gray-900/50 p-4 rounded-md min-h-[10rem]">
+                                    <!-- Chart will be generated by JS -->
                                 </div>
                             </div>
                         </div>
@@ -199,6 +285,30 @@
         </main>
     </div>
 
+    <!-- Break Timer Modal -->
+    <div id="break-modal-overlay" class="modal-overlay fixed inset-0 bg-black/70 flex items-center justify-center p-4 hidden opacity-0">
+        <div id="break-modal-content" class="bg-emerald-600 text-white p-8 rounded-lg shadow-2xl w-full max-w-md relative text-center">
+            <button id="close-break-modal-btn" class="absolute top-3 right-3 text-emerald-100 hover:text-white transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            <h3 class="text-xl font-semibold mb-4">Es hora de un descanso</h3>
+            <p id="break-timer-display" class="text-7xl font-bold tracking-tighter">05:00</p>
+            <div class="flex flex-wrap justify-center gap-2 mt-4">
+                <button data-time="300" class="break-time-btn px-3 py-1 bg-emerald-500/50 text-emerald-100 rounded-md hover:bg-emerald-500/80 transition">5 min</button>
+                <button data-time="600" class="break-time-btn px-3 py-1 bg-emerald-500/50 text-emerald-100 rounded-md hover:bg-emerald-500/80 transition">10 min</button>
+                <button data-time="900" class="break-time-btn px-3 py-1 bg-emerald-500/50 text-emerald-100 rounded-md hover:bg-emerald-500/80 transition">15 min</button>
+                <button data-time="1800" class="break-time-btn px-3 py-1 bg-emerald-500/50 text-emerald-100 rounded-md hover:bg-emerald-500/80 transition">30 min</button>
+            </div>
+            <div class="mt-6 flex items-center justify-center space-x-4 w-full max-w-xs mx-auto">
+                <button id="start-pause-break-btn" class="w-full px-8 py-3 bg-white text-emerald-600 rounded-lg font-semibold hover:bg-emerald-50 transition">Empezar</button>
+                <button id="reset-break-btn" class="w-full px-8 py-3 bg-emerald-700 rounded-lg font-semibold hover:bg-emerald-800 transition">Reiniciar</button>
+            </div>
+        </div>
+    </div>
+
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // --- STATE MANAGEMENT ---
@@ -207,6 +317,12 @@
                 pomodoro: {
                     sessionTime: 1500, // 25 minutes in seconds
                     timeLeft: 1500,
+                    isRunning: false,
+                    timerId: null
+                },
+                breakTimer: {
+                    sessionTime: 300, // 5 minutes default
+                    timeLeft: 300,
                     isRunning: false,
                     timerId: null
                 },
@@ -225,7 +341,8 @@
                         { id: 2, desc: 'Alquiler', amount: 800, type: 'expense' },
                         { id: 3, desc: 'Supermercado', amount: 150, type: 'expense' }
                     ]
-                }
+                },
+                notes: '<p>Escribe tus <b>notas</b> aquí...</p><p>Puedes usar la barra de herramientas. ✅</p>'
             };
 
             let state = JSON.parse(localStorage.getItem('dashboardState')) || initialState;
@@ -247,6 +364,24 @@
             const newFocusInput = document.getElementById('new-focus-input');
             const addFocusBtn = document.getElementById('add-focus-btn');
             
+            // Break Modal
+            const openBreakModalBtn = document.getElementById('open-break-modal-btn');
+            const breakModalOverlay = document.getElementById('break-modal-overlay');
+            const closeBreakModalBtn = document.getElementById('close-break-modal-btn');
+            const breakTimerDisplay = document.getElementById('break-timer-display');
+            const breakTimeSelectBtns = document.querySelectorAll('.break-time-btn');
+            const startPauseBreakBtn = document.getElementById('start-pause-break-btn');
+            const resetBreakBtn = document.getElementById('reset-break-btn');
+
+            // Notes
+            const notesToggleBtn = document.getElementById('notes-toggle-btn');
+            const notesContainer = document.getElementById('notes-container');
+            const notesCloseBtn = document.getElementById('notes-close-btn');
+            const notesEditor = document.getElementById('notes-editor');
+            const notesToolbar = document.getElementById('notes-toolbar');
+            const emojiMenuBtn = document.querySelector('.notes-emoji-menu button');
+            const emojiPicker = document.querySelector('.notes-emoji-picker');
+
             // Habits
             const newHabitInput = document.getElementById('new-habit-input');
             const addHabitBtn = document.getElementById('add-habit-btn');
@@ -273,10 +408,18 @@
             const render = () => {
                 renderTabs();
                 renderPomodoro();
+                renderBreakTimer();
                 renderFocusList();
                 renderHabitList();
                 renderHabitAnalytics();
                 renderFinance();
+                renderNotes();
+            };
+            
+            const formatTime = (seconds) => {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
             };
 
             // --- TABS ---
@@ -292,14 +435,26 @@
                     }
                 });
             };
-
-            // --- POMODORO ---
-            const formatTime = (seconds) => {
-                const mins = Math.floor(seconds / 60);
-                const secs = seconds % 60;
-                return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            
+            // --- NOTES ---
+            const renderNotes = () => {
+                if (notesEditor.innerHTML !== state.notes) {
+                    notesEditor.innerHTML = state.notes;
+                }
             };
             
+            const toggleNotes = (show) => {
+                if(show) {
+                    notesContainer.classList.remove('hidden');
+                    setTimeout(() => notesContainer.classList.remove('opacity-0'), 10);
+                } else {
+                    notesContainer.classList.add('opacity-0');
+                    setTimeout(() => notesContainer.classList.add('hidden'), 300);
+                }
+            }
+
+
+            // --- POMODORO ---
             const renderPomodoro = () => {
                 timerDisplay.textContent = formatTime(state.pomodoro.timeLeft);
                 startPauseBtn.textContent = state.pomodoro.isRunning ? 'Pausar' : 'Empezar';
@@ -314,6 +469,25 @@
                     state.pomodoro.isRunning = false;
                     state.pomodoro.timeLeft = state.pomodoro.sessionTime;
                     renderPomodoro();
+                    new Audio('https://www.soundjay.com/buttons/sounds/button-1.mp3').play();
+                }
+            };
+
+             // --- BREAK TIMER ---
+            const renderBreakTimer = () => {
+                breakTimerDisplay.textContent = formatTime(state.breakTimer.timeLeft);
+                startPauseBreakBtn.textContent = state.breakTimer.isRunning ? 'Pausar' : 'Empezar';
+            };
+
+            const updateBreakTimer = () => {
+                if (state.breakTimer.timeLeft > 0) {
+                    state.breakTimer.timeLeft--;
+                    renderBreakTimer();
+                } else {
+                    clearInterval(state.breakTimer.timerId);
+                    state.breakTimer.isRunning = false;
+                    state.breakTimer.timeLeft = state.breakTimer.sessionTime;
+                    renderBreakTimer();
                     new Audio('https://www.soundjay.com/buttons/sounds/button-1.mp3').play();
                 }
             };
@@ -350,12 +524,16 @@
                     const item = document.createElement('div');
                     item.className = 'bg-gray-700/50 p-4 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between';
                     item.innerHTML = `
-                        <div class="flex-1 mb-3 sm:mb-0">
+                        <div class="flex-1 mb-3 sm:mb-0 mr-4">
                             <span class="font-medium">${habit.name}</span>
                         </div>
-                        <div class="flex items-center space-x-2 sm:space-x-4">
+                        <div class="flex items-center">
                             <div class="flex flex-wrap gap-1 sm:gap-2">${checkboxesHTML}</div>
-                            <button data-index="${index}" class="delete-habit-btn text-lg text-gray-500 hover:text-red-400">&times;</button>
+                            <button data-index="${index}" class="delete-habit-btn ml-6 text-gray-500 hover:text-red-400 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
                         </div>
                     `;
                     habitList.appendChild(item);
@@ -378,25 +556,62 @@
                 habitProgressBar.style.width = `${percentage}%`;
                 habitProgressText.textContent = `${percentage}% Completado`;
 
-                const dayLabels = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+                const dayLabels = ['Lunes', 'Martes', 'Miérc.', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+                const colors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e', '#3b82f6', '#8b5cf6'];
                 const dailyCompletions = Array(7).fill(0);
                 state.habits.forEach(habit => {
                     habit.days.forEach((done, dayIndex) => {
                         if (done) dailyCompletions[dayIndex]++;
                     });
                 });
-                
-                dailyCompletionChart.innerHTML = dayLabels.map((label, i) => {
-                    const height = totalHabits > 0 ? (dailyCompletions[i] / totalHabits) * 100 : 0;
-                    return `
-                        <div class="flex flex-col items-center w-1/7">
-                            <div class="w-4 bg-gray-700 rounded-t-sm" style="height: 100%;">
-                                <div class="w-full bg-indigo-500 rounded-t-sm" style="height: ${height}%"></div>
-                            </div>
-                            <span class="text-xs mt-1 text-gray-400">${label}</span>
-                        </div>
-                    `;
+
+                const totalWeeklyCompletions = dailyCompletions.reduce((sum, count) => sum + count, 0);
+
+                if (totalWeeklyCompletions === 0) {
+                    dailyCompletionChart.innerHTML = '<p class="text-center w-full text-gray-500">Completa hábitos para ver el gráfico</p>';
+                    return;
+                }
+
+                const radius = 50;
+                const circumference = 2 * Math.PI * radius;
+                let offset = 0;
+
+                const svgSlices = dailyCompletions.map((completions, i) => {
+                    if (completions === 0) return '';
+                    const percentage = completions / totalWeeklyCompletions;
+                    const dash = percentage * circumference;
+                    const slice = `<circle class="pie-slice" cx="60" cy="60" r="${radius}" stroke-dasharray="${dash} ${circumference}" style="stroke-dashoffset: -${offset}; stroke: ${colors[i]}" />`;
+                    offset += dash;
+                    return slice;
                 }).join('');
+
+                const legendItems = dayLabels.map((label, i) => `
+                    <div class="flex items-center text-xs">
+                        <span class="w-3 h-3 rounded-full mr-2" style="background-color: ${colors[i]}"></span>
+                        <span class="text-gray-300">${label}:</span>
+                        <span class="font-semibold ml-1.5">${dailyCompletions[i]}</span>
+                    </div>
+                `).join('');
+
+                dailyCompletionChart.innerHTML = `
+                    <div class="flex flex-col sm:flex-row items-center justify-start sm:justify-around gap-4 w-full">
+                        <div class="relative w-28 h-28 flex-shrink-0">
+                             <svg viewBox="0 0 120 120" class="w-full h-full">
+                                <circle cx="60" cy="60" r="${radius}" fill="none" stroke="#374151" stroke-width="20" /> <!-- bg-gray-700 -->
+                                ${svgSlices}
+                             </svg>
+                             <div class="absolute inset-0 flex items-center justify-center">
+                                <div class="text-center">
+                                    <span class="text-2xl font-bold">${totalWeeklyCompletions}</span>
+                                    <span class="text-xs block text-gray-400 -mt-1">Total</span>
+                                </div>
+                             </div>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-1 gap-x-6 gap-y-2">
+                            ${legendItems}
+                        </div>
+                    </div>
+                `;
             };
 
             // --- FINANCE ---
@@ -416,17 +631,11 @@
                 totalIncomeEl.textContent = formatCurrency(totalIncome);
                 totalExpensesEl.textContent = formatCurrency(totalExpenses);
 
-                // Bar chart
                 const totalBudgetAndIncome = budget + totalIncome;
                 const expensePercentage = totalBudgetAndIncome > 0 ? (totalExpenses / totalBudgetAndIncome) * 100 : 0;
                 const incomePercentage = 100 - expensePercentage;
-                financeBarEl.style.width = `${incomePercentage}%`;
-                if(incomePercentage < 0){
-                    financeBarEl.style.width = `0%`
-                }
+                financeBarEl.style.width = `${incomePercentage < 0 ? 0 : incomePercentage}%`;
 
-
-                // Transaction List
                 transactionList.innerHTML = transactions.slice().reverse().map(t => `
                     <div class="flex justify-between items-center p-2 rounded-md ${t.type === 'income' ? 'bg-green-500/10' : 'bg-red-500/10'}">
                         <span>${t.desc}</span>
@@ -446,6 +655,50 @@
                     renderTabs();
                 });
             });
+
+            // Notes Listeners
+            notesToggleBtn.addEventListener('click', () => toggleNotes(true));
+            notesCloseBtn.addEventListener('click', () => toggleNotes(false));
+            
+            notesEditor.addEventListener('input', () => {
+                state.notes = notesEditor.innerHTML;
+                saveState();
+            });
+
+            // Use mousedown for commands to avoid focus shift from editor
+            notesToolbar.addEventListener('mousedown', e => {
+                const toolButton = e.target.closest('.notes-tool-btn');
+                if (toolButton && toolButton.dataset.command) {
+                    // This is a command button (bold, italic, list)
+                    e.preventDefault(); // Prevent the button from taking focus
+                    document.execCommand(toolButton.dataset.command, false, null);
+                    // Manually trigger state save, as 'input' might not fire
+                    state.notes = notesEditor.innerHTML;
+                    saveState();
+                }
+            });
+
+            // Use click for menu toggles like the emoji picker
+            notesToolbar.addEventListener('click', e => {
+                 const toolButton = e.target.closest('.notes-tool-btn');
+                 // Check if the clicked button is the emoji menu toggle
+                 if (toolButton && !toolButton.dataset.command) {
+                    emojiPicker.classList.toggle('hidden');
+                    emojiPicker.classList.toggle('grid');
+                 }
+            });
+
+            emojiPicker.addEventListener('click', (e) => {
+                if (e.target.tagName === 'SPAN') {
+                    notesEditor.focus();
+                    document.execCommand('insertText', false, e.target.textContent);
+                    emojiPicker.classList.add('hidden');
+                    emojiPicker.classList.remove('grid');
+                    state.notes = notesEditor.innerHTML; // Save state after emoji insertion
+                    saveState();
+                }
+            });
+
 
             // Pomodoro listeners
             startPauseBtn.addEventListener('click', () => {
@@ -478,6 +731,61 @@
                     renderPomodoro();
                 });
             });
+
+            // Break Modal Listeners
+            openBreakModalBtn.addEventListener('click', () => {
+                if (state.pomodoro.isRunning) {
+                     clearInterval(state.pomodoro.timerId);
+                     state.pomodoro.isRunning = false;
+                     renderPomodoro();
+                }
+                breakModalOverlay.classList.remove('hidden');
+                setTimeout(() => breakModalOverlay.classList.remove('opacity-0'), 10);
+            });
+
+            const closeBreakModal = () => {
+                breakModalOverlay.classList.add('opacity-0');
+                setTimeout(() => breakModalOverlay.classList.add('hidden'), 300);
+            };
+
+            closeBreakModalBtn.addEventListener('click', closeBreakModal);
+            breakModalOverlay.addEventListener('click', (e) => {
+                if (e.target === breakModalOverlay) {
+                    closeBreakModal();
+                }
+            });
+            
+            startPauseBreakBtn.addEventListener('click', () => {
+                if (state.breakTimer.isRunning) {
+                    clearInterval(state.breakTimer.timerId);
+                } else {
+                    state.breakTimer.timerId = setInterval(updateBreakTimer, 1000);
+                }
+                state.breakTimer.isRunning = !state.breakTimer.isRunning;
+                saveState();
+                renderBreakTimer();
+            });
+
+            resetBreakBtn.addEventListener('click', () => {
+                clearInterval(state.breakTimer.timerId);
+                state.breakTimer.isRunning = false;
+                state.breakTimer.timeLeft = state.breakTimer.sessionTime;
+                saveState();
+                renderBreakTimer();
+            });
+
+            breakTimeSelectBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const newTime = parseInt(btn.dataset.time, 10);
+                    clearInterval(state.breakTimer.timerId);
+                    state.breakTimer.isRunning = false;
+                    state.breakTimer.sessionTime = newTime;
+                    state.breakTimer.timeLeft = newTime;
+                    saveState();
+                    renderBreakTimer();
+                });
+            });
+
 
             // Focus listeners
             addFocusBtn.addEventListener('click', () => {
@@ -515,16 +823,25 @@
             });
 
             habitList.addEventListener('click', (e) => {
-                if (e.target.classList.contains('delete-habit-btn')) {
-                    state.habits.splice(e.target.dataset.index, 1);
+                let stateChanged = false;
+                const deleteButton = e.target.closest('.delete-habit-btn');
+
+                if (deleteButton) {
+                    state.habits.splice(deleteButton.dataset.index, 1);
+                    stateChanged = true;
                 }
+                
                 if (e.target.classList.contains('habit-checkbox')) {
                     const { habitIndex, dayIndex } = e.target.dataset;
                     state.habits[habitIndex].days[dayIndex] = e.target.checked;
+                    stateChanged = true;
                 }
-                saveState();
-                renderHabitList();
-                renderHabitAnalytics();
+
+                if (stateChanged) {
+                    saveState();
+                    renderHabitList();
+                    renderHabitAnalytics();
+                }
             });
 
             // Finance listeners
@@ -567,4 +884,8 @@
     </script>
 </body>
 </html>
+
+
+
+
 
