@@ -384,53 +384,71 @@
     </div>
 
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
+    <script type="module">
+        // --- FIREBASE SDKs ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+
+        // --- FIREBASE CONFIGURATION ---
+        // IMPORTANTE: Pega aquí la configuración de tu proyecto de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDq5bsPd_jD6rGXQprW-uEXlA3_RoXzfko",
+            authDomain: "jairoroutine.firebaseapp.com",
+            projectId: "jairoroutine",
+            storageBucket: "jairoroutine.appspot.com",
+            messagingSenderId: "793227309779",
+            appId: "1:793227309779:web:24a4ea41b65ec9537c5a26"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- MAIN APP LOGIC ---
+        let state;
+        let dbRef; // Document reference in Firestore
+
+        // Function to start the app after getting user data
+        const startApp = async (userId) => {
+            dbRef = doc(db, "dashboards", userId);
+
             // --- STATE MANAGEMENT ---
             const initialState = {
                 activeTab: 'work',
-                activeTodoTab: 'general', // 'general' or 'routine'
-                pomodoro: {
-                    sessionTime: 1500, // 25 minutes in seconds
-                    timeLeft: 1500,
-                    isRunning: false,
-                    timerId: null
-                },
-                breakTimer: {
-                    sessionTime: 300, // 5 minutes default
-                    timeLeft: 300,
-                    isRunning: false,
-                    timerId: null
-                },
-                focusAreas: [1], // Contains IDs of tasks from the 'todos' array
-                todos: [
-                    { id: 1, text: 'Diseñar el mockup de la landing page', day: 'L', importance: 'alta', pomodoros: 4, pomodoroDuration: 1500, completed: false },
-                    { id: 2, text: 'Reunión de equipo semanal', day: 'M', importance: 'media', pomodoros: 2, pomodoroDuration: 1800, completed: true },
-                    { id: 3, text: 'Actualizar reporte de progreso', day: 'V', importance: 'baja', pomodoros: 1, pomodoroDuration: 3600, completed: false }
-                ],
-                routineTodos: [
-                    { id: 101, text: 'Revisar correos importantes', day: 'L', pomodoros: 1, pomodoroDuration: 1500, completed: false },
-                    { id: 102, text: 'Planificar el día siguiente', day: 'M', pomodoros: 1, pomodoroDuration: 1500, completed: false }
-                ],
-                habits: [
-                    { name: 'Leer 10 páginas', days: [true, false, true, false, false, true, false] },
-                    { name: 'Hacer ejercicio', days: [true, true, false, true, true, false, false] },
-                ],
-                finance: {
-                    budget: 1500,
-                    transactions: [
-                        { id: 1, desc: 'Salario', amount: 2000, type: 'income' },
-                        { id: 2, desc: 'Alquiler', amount: 800, type: 'expense' },
-                        { id: 3, desc: 'Supermercado', amount: 150, type: 'expense' }
-                    ]
-                },
-                notes: '<p>Escribe tus <b>notas</b> aquí...</p><p>Puedes usar la barra de herramientas. ✅</p>'
+                activeTodoTab: 'general',
+                pomodoro: { sessionTime: 1500, timeLeft: 1500, isRunning: false, timerId: null },
+                breakTimer: { sessionTime: 300, timeLeft: 300, isRunning: false, timerId: null },
+                focusAreas: [],
+                todos: [],
+                routineTodos: [],
+                habits: [],
+                finance: { budget: 0, transactions: [] },
+                notes: '<p>Escribe tus notas aquí...</p>'
             };
 
-            let state = JSON.parse(localStorage.getItem('dashboardState')) || initialState;
+            // Load data from Firestore or use initial state
+            const docSnap = await getDoc(dbRef);
+            if (docSnap.exists()) {
+                state = docSnap.data();
+                // Ensure new properties exist if loading old data
+                if (!state.routineTodos) state.routineTodos = [];
+                if (!state.activeTodoTab) state.activeTodoTab = 'general';
+            } else {
+                state = initialState;
+                await setDoc(dbRef, state);
+            }
 
+            // Debounced save function to avoid too many writes to Firestore
+            let saveTimeout;
             const saveState = () => {
-                localStorage.setItem('dashboardState', JSON.stringify(state));
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(() => {
+                    if (dbRef) {
+                        setDoc(dbRef, state).catch(error => console.error("Error writing document: ", error));
+                    }
+                }, 1000); // Save 1 second after the last change
             };
 
             // --- CONSTANTS ---
@@ -1043,6 +1061,7 @@
             todoTabButtons.forEach(button => {
                 button.addEventListener('click', () => {
                     state.activeTodoTab = button.dataset.todotab;
+                    saveState();
                     renderTodoTabs();
                 });
             });
@@ -1072,7 +1091,8 @@
                     pomodoroDuration: parseInt(todoDurationSelect.value, 10),
                 };
 
-                const targetArray = state.activeTodoTab === 'routine' ? state.routineTodos : state.todos;
+                const isRoutine = state.activeTodoTab === 'routine';
+                const targetArray = isRoutine ? state.routineTodos : state.todos;
 
                 if (id) {
                     const numericId = parseInt(id, 10);
@@ -1086,8 +1106,7 @@
                 
                 resetTodoForm();
                 saveState();
-                renderTodos();
-                renderRoutineTodos();
+                if(isRoutine) renderRoutineTodos(); else renderTodos();
                 renderFocusList();
             });
 
@@ -1283,7 +1302,7 @@
                 }
             });
 
-            // Import/Export Listeners
+            // Import/Export Listeners (now works with current state in memory)
             exportBtn.addEventListener('click', () => {
                 const dataStr = JSON.stringify(state, null, 2); 
                 const blob = new Blob([dataStr], { type: 'application/json' });
@@ -1311,7 +1330,7 @@
                         const importedState = JSON.parse(event.target.result);
                         if (importedState && importedState.pomodoro && importedState.habits && importedState.finance) {
                             state = importedState;
-                            saveState();
+                            saveState(); // Save imported state to Firestore
                             render();
                             alert('¡Datos importados con éxito!');
                         } else {
@@ -1327,10 +1346,29 @@
             });
 
 
-            // --- INITIALIZATION ---
-            render();
+            // --- AUTHENTICATION & APP INITIALIZATION ---
+            onAuthStateChanged(auth, user => {
+                if (user) {
+                    // User is signed in.
+                    console.log("Authenticated with user ID:", user.uid);
+                    startApp(user.uid);
+                } else {
+                    // User is signed out. Sign in anonymously.
+                    signInAnonymously(auth).catch(error => {
+                        console.error("Anonymous sign-in failed:", error);
+                        alert("No se pudo conectar a la base de datos. Por favor, revisa tu conexión y la configuración de Firebase.");
+                    });
+                }
+            });
+        };
+
+        // This event listener now only handles authentication,
+        // which then triggers the main application logic.
+        document.addEventListener('DOMContentLoaded', () => {
+             // The onAuthStateChanged listener above will handle starting the app.
         });
     </script>
 </body>
 </html>
+
 
