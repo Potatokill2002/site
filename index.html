@@ -391,7 +391,6 @@
         import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
         // --- FIREBASE CONFIGURATION ---
-        // IMPORTANTE: Pega aquí la configuración de tu proyecto de Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyDq5bsPd_jD6rGXQprW-uEXlA3_RoXzfko",
             authDomain: "jairoroutine.firebaseapp.com",
@@ -1345,8 +1344,11 @@
                 e.target.value = null; 
             });
 
+            // Initial Render
+            render();
+        };
 
-            // --- AUTHENTICATION & APP INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
             onAuthStateChanged(auth, user => {
                 if (user) {
                     // User is signed in.
@@ -1360,15 +1362,8 @@
                     });
                 }
             });
-        };
-
-        // This event listener now only handles authentication,
-        // which then triggers the main application logic.
-        document.addEventListener('DOMContentLoaded', () => {
-             // The onAuthStateChanged listener above will handle starting the app.
         });
     </script>
 </body>
 </html>
-
 
