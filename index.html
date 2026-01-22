@@ -150,6 +150,24 @@
         .dot-yellow { background: var(--accent-yellow); box-shadow: 0 0 5px var(--accent-yellow); }
         .dot-red { background: var(--accent-red); box-shadow: 0 0 5px var(--accent-red); }
 
+        /* Analytics Controls */
+        .date-picker-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        .date-input {
+            background: var(--bg-secondary);
+            border: 1px solid var(--card-border);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            outline: none;
+        }
+        .date-input:focus { border-color: var(--accent-blue); }
+
         /* Save Button */
         .save-bar {
             position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -158,6 +176,21 @@
             border: none; cursor: pointer; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
             display: flex; align-items: center; gap: 10px; z-index: 1000;
         }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .chart-container {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--card-border);
+            height: 350px;
+        }
+        @media (max-width: 768px) { .stats-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -220,14 +253,13 @@
                 <div class="card calendar-card">
                     <div class="card-header" style="border:none; margin:0">
                         <i data-lucide="calendar" style="width:16px"></i>
-                        <span style="font-size: 0.9rem; font-weight:bold" id="calMonth">January 2026</span>
+                        <span style="font-size: 0.9rem; font-weight:bold" id="calMonth">Current Month</span>
                     </div>
                     <div class="calendar-grid" id="calendarGrid">
                         <!-- Labels -->
                         <div class="cal-day-label">S</div><div class="cal-day-label">M</div><div class="cal-day-label">T</div>
                         <div class="cal-day-label">W</div><div class="cal-day-label">T</div><div class="cal-day-label">F</div>
                         <div class="cal-day-label">S</div>
-                        <!-- Days injected by JS -->
                     </div>
                     <div style="margin-top: 20px; font-size: 0.7rem; color: var(--text-dim); display:flex; gap:10px; justify-content:center;">
                         <span><i style="color:var(--accent-green)">●</i> Met</span>
@@ -242,17 +274,27 @@
     <!-- STATS PAGE -->
     <div id="page-stats" class="page">
         <header style="margin-bottom: 20px">
-            <h1>Performance Summary</h1>
-            <select id="timeframeSelect" onchange="renderCharts()" style="background: var(--bg-secondary); color: white; border: 1px solid var(--accent-blue); padding: 5px 12px; border-radius: 6px; margin-top:10px;">
-                <option value="1">Daily Goal</option>
-                <option value="7">Weekly Goal</option>
-                <option value="30">Monthly Goal</option>
-            </select>
+            <h1>Range Analysis</h1>
+            <p style="color: var(--text-dim)">Select a date range to aggregate stats from your history.</p>
+            <div class="date-picker-group">
+                <div style="display:flex; flex-direction:column; gap:5px">
+                    <label style="font-size:0.7rem; color:var(--text-dim)">From:</label>
+                    <input type="date" id="startDate" class="date-input" onchange="renderCharts()">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:5px">
+                    <label style="font-size:0.7rem; color:var(--text-dim)">To:</label>
+                    <input type="date" id="endDate" class="date-input" onchange="renderCharts()">
+                </div>
+                <button onclick="setRange('today')" style="background:transparent; border:1px solid var(--accent-blue); color:var(--accent-blue); padding:8px 12px; border-radius:8px; cursor:pointer; font-size:0.8rem; margin-top:18px">Today</button>
+            </div>
         </header>
+        
         <div class="stats-grid">
             <div class="chart-container"><canvas id="barChart"></canvas></div>
             <div class="chart-container"><canvas id="pieChart"></canvas></div>
         </div>
+        
+        <div id="rangeInfo" style="margin-top:20px; color:var(--text-dim); font-size:0.85rem; text-align:center"></div>
     </div>
 </div>
 
@@ -269,7 +311,7 @@
         jairo_contracts: 1
     };
 
-    // history stores: { "DateString": "green/yellow/red" }
+    // history stores: { "DateString": { counts: {jairo_dvds: 5, ...}, status: "green" } }
     let appState = {
         jairo_dvds: 0,
         cesar_dvds: 0,
@@ -285,6 +327,11 @@
         lucide.createIcons();
         document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
         
+        // Default range to today
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('startDate').value = todayStr;
+        document.getElementById('endDate').value = todayStr;
+
         loadFromStorage();
         checkAutoReset();
         generateCheckboxes();
@@ -333,7 +380,6 @@
         Object.keys(CONFIG).forEach(key => {
             if (appState[key] >= CONFIG[key]) met++;
         });
-        
         if (met === totalKeys) return 'green';
         if (met > 0) return 'yellow';
         return 'red';
@@ -341,8 +387,17 @@
 
     function manualSave() {
         const today = new Date().toDateString();
-        appState.history[today] = calculateDailyStatus();
-        localStorage.setItem('kpi_dashboard_state_v2', JSON.stringify(appState));
+        appState.history[today] = {
+            counts: {
+                jairo_dvds: appState.jairo_dvds,
+                cesar_dvds: appState.cesar_dvds,
+                stanley_leads: appState.stanley_leads,
+                jairo_quotes: appState.jairo_quotes,
+                jairo_contracts: appState.jairo_contracts
+            },
+            status: calculateDailyStatus()
+        };
+        localStorage.setItem('kpi_dashboard_state_v3', JSON.stringify(appState));
         localStorage.setItem('last_active_date', today);
         
         renderCalendar();
@@ -358,7 +413,7 @@
     }
 
     function loadFromStorage() {
-        const saved = localStorage.getItem('kpi_dashboard_state_v2');
+        const saved = localStorage.getItem('kpi_dashboard_state_v3');
         if (saved) appState = JSON.parse(saved);
     }
 
@@ -366,8 +421,6 @@
         const lastDate = localStorage.getItem('last_active_date');
         const today = new Date().toDateString();
         if (lastDate && lastDate !== today) {
-            // Auto-save yesterday's status if it wasn't recorded? 
-            // For now, just clear the UI inputs for the new day
             appState.jairo_dvds = 0;
             appState.cesar_dvds = 0;
             appState.stanley_leads = 0;
@@ -381,36 +434,24 @@
         const monthLabel = document.getElementById('calMonth');
         const now = new Date();
         monthLabel.innerText = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-        // Clear existing days (keep labels)
         const labels = grid.querySelectorAll('.cal-day-label');
         grid.innerHTML = '';
         labels.forEach(l => grid.appendChild(l));
-
         const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
         const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-
-        // Padding for first day
-        for (let i = 0; i < firstDay; i++) {
-            const empty = document.createElement('div');
-            grid.appendChild(empty);
-        }
-
+        for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
         for (let d = 1; d <= daysInMonth; d++) {
             const dayEl = document.createElement('div');
             dayEl.className = 'cal-day';
             const dateStr = new Date(now.getFullYear(), now.getMonth(), d).toDateString();
-            
             if (dateStr === now.toDateString()) dayEl.classList.add('today');
             dayEl.innerText = d;
-
-            const status = appState.history[dateStr];
-            if (status) {
+            const entry = appState.history[dateStr];
+            if (entry) {
                 const dot = document.createElement('div');
-                dot.className = `status-dot dot-${status}`;
+                dot.className = `status-dot dot-${entry.status}`;
                 dayEl.appendChild(dot);
             }
-
             grid.appendChild(dayEl);
         }
     }
@@ -418,19 +459,17 @@
     function initCharts() {
         const ctxBar = document.getElementById('barChart').getContext('2d');
         const ctxPie = document.getElementById('pieChart').getContext('2d');
-
         barChart = new Chart(ctxBar, {
             type: 'bar',
             data: {
                 labels: ['Jairo DVD', 'Cesar DVD', 'Leads', 'Quotes', 'Contracts'],
                 datasets: [
-                    { label: 'Actual', data: [0,0,0,0,0], backgroundColor: '#38bdf8', borderRadius: 5 },
-                    { label: 'Target', data: [0,0,0,0,0], backgroundColor: 'rgba(255,255,255,0.1)', borderColor: '#94a3b8', borderWidth: 1, borderRadius: 5 }
+                    { label: 'Aggregated Actual', data: [0,0,0,0,0], backgroundColor: '#38bdf8', borderRadius: 5 },
+                    { label: 'Aggregated Target', data: [0,0,0,0,0], backgroundColor: 'rgba(255,255,255,0.1)', borderColor: '#94a3b8', borderWidth: 1, borderRadius: 5 }
                 ]
             },
             options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
         });
-
         pieChart = new Chart(ctxPie, {
             type: 'doughnut',
             data: {
@@ -441,23 +480,68 @@
         });
     }
 
+    function setRange(mode) {
+        if (mode === 'today') {
+            const todayStr = new Date().toISOString().split('T')[0];
+            document.getElementById('startDate').value = todayStr;
+            document.getElementById('endDate').value = todayStr;
+            renderCharts();
+        }
+    }
+
     function renderCharts() {
-        const m = parseInt(document.getElementById('timeframeSelect').value);
-        barChart.data.datasets[0].data = [appState.jairo_dvds, appState.cesar_dvds, appState.stanley_leads, appState.jairo_quotes, appState.jairo_contracts];
-        barChart.data.datasets[1].data = [CONFIG.jairo_dvds*m, CONFIG.cesar_dvds*m, CONFIG.stanley_leads*m, CONFIG.jairo_quotes*m, CONFIG.jairo_contracts*m];
+        const start = new Date(document.getElementById('startDate').value + "T00:00:00");
+        const end = new Date(document.getElementById('endDate').value + "T23:59:59");
+        
+        let totals = { jairo_dvds: 0, cesar_dvds: 0, stanley_leads: 0, jairo_quotes: 0, jairo_contracts: 0 };
+        let daysFound = 0;
+
+        // Iterate through all saved history
+        Object.keys(appState.history).forEach(dateStr => {
+            const entryDate = new Date(dateStr);
+            if (entryDate >= start && entryDate <= end) {
+                const counts = appState.history[dateStr].counts || {};
+                Object.keys(totals).forEach(key => {
+                    totals[key] += (counts[key] || 0);
+                });
+                daysFound++;
+            }
+        });
+
+        // If analyzing "Today" specifically, include current non-saved session if date matches
+        const todayStr = new Date().toDateString();
+        const todayDate = new Date();
+        if (todayDate >= start && todayDate <= end && !appState.history[todayStr]) {
+            totals.jairo_dvds += appState.jairo_dvds;
+            totals.cesar_dvds += appState.cesar_dvds;
+            totals.stanley_leads += appState.stanley_leads;
+            totals.jairo_quotes += appState.jairo_quotes;
+            totals.jairo_contracts += appState.jairo_contracts;
+            daysFound++;
+        }
+
+        // Target is based on the number of days in range
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const multiplier = diffDays || 1;
+
+        barChart.data.datasets[0].data = [totals.jairo_dvds, totals.cesar_dvds, totals.stanley_leads, totals.jairo_quotes, totals.jairo_contracts];
+        barChart.data.datasets[1].data = [CONFIG.jairo_dvds*multiplier, CONFIG.cesar_dvds*multiplier, CONFIG.stanley_leads*multiplier, CONFIG.jairo_quotes*multiplier, CONFIG.jairo_contracts*multiplier];
         barChart.update();
 
-        const str = appState.jairo_dvds + appState.cesar_dvds;
-        const cons = appState.stanley_leads + appState.jairo_quotes + appState.jairo_contracts;
+        const str = totals.jairo_dvds + totals.cesar_dvds;
+        const cons = totals.stanley_leads + totals.jairo_quotes + totals.jairo_contracts;
         pieChart.data.datasets[0].data = [str || 1, cons || 1];
         pieChart.update();
+
+        document.getElementById('rangeInfo').innerText = `Analyzing ${multiplier} day(s). Found data for ${daysFound} day(s) in this period.`;
     }
 
     function exportJSON() {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState));
         const dl = document.createElement('a');
         dl.setAttribute("href", dataStr);
-        dl.setAttribute("download", `kpi_data_${new Date().toISOString().split('T')[0]}.json`);
+        dl.setAttribute("download", `kpi_full_history.json`);
         dl.click();
     }
 </script>
