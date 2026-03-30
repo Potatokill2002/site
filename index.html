@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VILLA — Gestora de Propiedades</title>
+<title>Edén Rentals — Gestora de Propiedades</title>
+<link rel="icon" type="image/png" href="https://lh3.googleusercontent.com/d/1BHUhSZB1oBPqJVO63hfLgTilwg3lEbyE">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -187,7 +188,57 @@
   ::-webkit-scrollbar{width:5px;height:5px;}
   ::-webkit-scrollbar-track{background:transparent;}
   ::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px;}
-  @media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,1fr);}.detail-panel{width:100%;}}
+  @media(max-width:1100px){
+    .stats-grid{grid-template-columns:repeat(2,1fr);}
+    .detail-panel{width:100%;}
+    .grid-2{grid-template-columns:1fr;}
+    .grid-3{grid-template-columns:1fr 1fr;}
+  }
+  @media(max-width:768px){
+    body{flex-direction:column;}
+    .sidebar{width:100%;height:auto;flex-direction:row;overflow-x:auto;overflow-y:hidden;flex-shrink:0;padding:0;}
+    .sidebar-logo{padding:12px 16px;border-bottom:none;border-right:1px solid rgba(255,255,255,.08);display:flex;align-items:center;flex-shrink:0;}
+    .sidebar-logo img{max-width:100px;}
+    .sidebar-section{padding:8px 4px;display:flex;align-items:center;gap:2px;flex-shrink:0;}
+    .sidebar-label{display:none;}
+    .nav-item{padding:8px 10px;font-size:12px;white-space:nowrap;margin-bottom:0;}
+    .nav-badge{font-size:9px;padding:1px 5px;}
+    .sidebar-bottom{display:none;}
+    .main{height:calc(100vh - 56px);}
+    .topbar{padding:0 16px;height:52px;}
+    .topbar .page-title{font-size:18px;}
+    .topbar .topbar-logo{height:28px;}
+    .content{padding:16px;}
+    .stats-grid{grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+    .stat-card{padding:14px;}
+    .stat-value{font-size:28px;}
+    .grid-2,.grid-3{grid-template-columns:1fr;gap:12px;}
+    .props-grid{grid-template-columns:1fr;}
+    .section-header{flex-direction:column;gap:10px;align-items:flex-start;}
+    .search-box input{width:140px;}
+    .card{padding:16px;}
+    .modal{width:95vw;padding:20px;max-height:90vh;}
+    .form-grid{grid-template-columns:1fr;}
+    .review-form-grid{grid-template-columns:1fr;}
+    .review-form-card{padding:18px;}
+    .review-submit-bar{flex-wrap:wrap;}
+    .review-submit-bar span{order:3;width:100%;}
+    .incident-stats{grid-template-columns:1fr 1fr 1fr;gap:6px;}
+    .panel-tabs{gap:0;padding:8px 12px;}
+    .panel-tab{padding:5px 10px;font-size:11px;}
+    .panel-header{padding:14px 16px;}
+    .panel-body{padding:16px;}
+  }
+  @media(max-width:480px){
+    .stats-grid{grid-template-columns:1fr;}
+    .incident-stats{grid-template-columns:1fr;}
+    .nav-item{padding:8px;font-size:0;}
+    .nav-item .nav-icon{width:20px;height:20px;}
+    .sidebar-section{gap:0;}
+    .prop-card-title{font-size:16px;}
+    .topbar{height:48px;}
+    .content{padding:12px;}
+  }
 
   /* ══════════════════════════════════════
      REVIEWS SECTION STYLES
@@ -278,6 +329,7 @@
 <div class="main">
   <!-- TOPBAR: cleaned — no search box, no duplicate button -->
   <div class="topbar">
+    <img src="https://lh3.googleusercontent.com/d/1BHUhSZB1oBPqJVO63hfLgTilwg3lEbyE" alt="Edén Rentals" class="topbar-logo" style="height:32px;display:none">
     <div class="page-title" id="pageTitle">Dashboard</div>
   </div>
 
@@ -931,6 +983,18 @@ async function savePanelTab(){
       });
       updates.platforms=plats;
     }
+    // Handle nearby properties
+    var nearbyContainer=document.getElementById('panel-nearby-list');
+    if(nearbyContainer){
+      var nearbyIds=[];
+      nearbyContainer.querySelectorAll('.nearby-edit-row').forEach(function(row){
+        var nid=row.getAttribute('data-nearby-id');
+        if(nid) nearbyIds.push(nid);
+      });
+      updates.nearby=nearbyIds;
+    }
+    var nearbyNotesEl=document.getElementById('panel-nearby-notes');
+    if(nearbyNotesEl) updates.nearbyNotes=nearbyNotesEl.value;
 
     Object.assign(p, updates);
     await fsSet('props', docId, updates);
@@ -1032,10 +1096,27 @@ function switchTab(name){
   }
 
   else if(name==='cercanas'){
-    var nearbyProps=(p.nearby||[]).map(nid=>getProp(nid)).filter(Boolean);
+    var nearbyIds=p.nearby||[];
+    var nearbyProps=nearbyIds.map(nid=>getProp(nid)).filter(Boolean);
+    var otherProps=DB.props.filter(op=>op.id!==p.id && !nearbyIds.includes(op.id));
     h='<div class="panel-section"><div class="panel-section-title">Propiedades Cercanas</div>';
-    h+=nearbyProps.map(np=>'<div class="nearby-prop"><div class="prop-thumb" style="background:rgba(196,135,58,.12);font-weight:600;font-size:14px;color:var(--accent)">'+np.emoji+'</div><div class="prop-info"><div class="prop-name">'+np.name+'</div><div class="prop-nick-sm">'+np.nick+'</div></div></div>').join('');
-    h+=(p.nearbyNotes?'<p style="font-size:13px;color:var(--slate);margin-top:12px">'+p.nearbyNotes+'</p>':'')+'</div>';
+    h+='<div id="panel-nearby-list">';
+    nearbyProps.forEach(function(np){
+      h+='<div class="nearby-edit-row" data-nearby-id="'+np.id+'" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--warm-white);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px">';
+      h+='<div class="prop-thumb" style="background:rgba(196,135,58,.12);font-weight:600;font-size:14px;color:var(--accent);width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+np.emoji+'</div>';
+      h+='<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500">'+np.name+'</div><div style="font-size:11px;color:var(--muted);font-family:DM Mono,monospace">'+np.nick+'</div></div>';
+      h+='<button class="btn btn-icon btn-sm" style="color:var(--danger);flex-shrink:0" onclick="removeNearby(\''+np.id+'\')">✕</button></div>';
+    });
+    h+='</div>';
+    if(otherProps.length>0){
+      h+='<div style="display:flex;gap:8px;margin-top:8px"><select class="form-select" id="panel-add-nearby" style="flex:1"><option value="">— Seleccionar propiedad —</option>';
+      otherProps.forEach(function(op){ h+='<option value="'+op.id+'">'+op.name+' ('+op.nick+')</option>'; });
+      h+='</select><button class="btn btn-ghost btn-sm" onclick="addNearby()">+ Agregar</button></div>';
+    }
+    h+='</div>';
+    h+='<div class="panel-section" style="margin-top:18px"><div class="panel-section-title">Notas de Propiedades Cercanas</div>';
+    h+='<textarea class="form-textarea" id="panel-nearby-notes" rows="3" placeholder="Descripciones, turnos compartidos, notas sobre propiedades cercanas...">'+(p.nearbyNotes||'')+'</textarea></div>';
+    h+=panelSaveBar();
   }
 
   body.innerHTML=h;
@@ -1065,6 +1146,34 @@ function addLocationRow(){
   row.style.cssText='display:flex;gap:6px;margin-bottom:6px;align-items:center';
   row.innerHTML='<input class="form-input" data-loc="icon" value="📍" style="width:44px;text-align:center"><input class="form-input" data-loc="label" placeholder="Etiqueta" style="flex:1"><input class="form-input" data-loc="val" placeholder="Ubicación" style="flex:2"><button class="btn btn-icon btn-sm" style="color:var(--danger)" onclick="this.parentElement.remove()">✕</button>';
   c.appendChild(row);
+}
+function addNearby(){
+  var sel=document.getElementById('panel-add-nearby');
+  var nid=sel.value; if(!nid) return;
+  var np=getProp(nid); if(!np) return;
+  var c=document.getElementById('panel-nearby-list');
+  var row=document.createElement('div');
+  row.className='nearby-edit-row';
+  row.setAttribute('data-nearby-id',nid);
+  row.style.cssText='display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--warm-white);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px';
+  row.innerHTML='<div class="prop-thumb" style="background:rgba(196,135,58,.12);font-weight:600;font-size:14px;color:var(--accent);width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+np.emoji+'</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500">'+np.name+'</div><div style="font-size:11px;color:var(--muted);font-family:DM Mono,monospace">'+np.nick+'</div></div><button class="btn btn-icon btn-sm" style="color:var(--danger);flex-shrink:0" onclick="removeNearby(\''+np.id+'\')">✕</button>';
+  c.appendChild(row);
+  // Remove from dropdown
+  sel.querySelector('option[value="'+nid+'"]').remove();
+  sel.value='';
+}
+function removeNearby(nid){
+  var row=document.querySelector('.nearby-edit-row[data-nearby-id="'+nid+'"]');
+  if(row) row.remove();
+  // Re-add to dropdown
+  var np=getProp(nid);
+  var sel=document.getElementById('panel-add-nearby');
+  if(sel&&np){
+    var opt=document.createElement('option');
+    opt.value=nid;
+    opt.textContent=np.name+' ('+np.nick+')';
+    sel.appendChild(opt);
+  }
 }
 
 /* ══════════════════════════════════════
@@ -1318,6 +1427,8 @@ window.savePanelTab = savePanelTab;
 window.addPlatformRow = addPlatformRow;
 window.addInventoryRow = addInventoryRow;
 window.addLocationRow = addLocationRow;
+window.addNearby = addNearby;
+window.removeNearby = removeNearby;
 window.openIncModal = openIncModal;
 window.editIncModal = editIncModal;
 window.saveInc = saveInc;
