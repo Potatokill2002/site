@@ -564,7 +564,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getFirestore, collection, getDocs, doc, setDoc, addDoc, updateDoc, deleteDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getFirestore, collection, getDocs, doc, setDoc, addDoc, deleteDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 /* ══════════════════════════════════════
    FIREBASE CONFIG
@@ -666,21 +666,27 @@ async function fsLoad(col){
   const snap = await getDocs(collection(db, col));
   return snap.docs.map(d=>({...d.data(), _docId:d.id}));
 }
+async function fsSet(col, docId, data){
+  // Clean _docId from data before sending to Firestore
+  var clean = Object.assign({}, data);
+  delete clean._docId;
+  await setDoc(doc(db, col, docId), clean, {merge:true});
+}
 async function fsAdd(col, data){
-  const ref = await addDoc(collection(db, col), data);
+  var clean = Object.assign({}, data);
+  delete clean._docId;
+  const ref = await addDoc(collection(db, col), clean);
   return ref.id;
 }
-async function fsUpdate(col, docId, data){
-  await updateDoc(doc(db, col, docId), data);
-}
-async function fsDelete(col, docId){
+async function fsRemove(col, docId){
   await deleteDoc(doc(db, col, docId));
 }
 async function fsSeed(col, items){
   const batch = writeBatch(db);
   items.forEach(item=>{
-    const ref = doc(db, col, item.id);
-    batch.set(ref, item);
+    var clean = Object.assign({}, item);
+    delete clean._docId;
+    batch.set(doc(db, col, item.id), clean);
   });
   await batch.commit();
 }
@@ -855,26 +861,25 @@ async function saveProp(){
   if(!name){alert('Nombre obligatorio.');return;}
   var data={name:name,nick:document.getElementById('pm-nick').value,owner:document.getElementById('pm-owner').value,phone:document.getElementById('pm-phone').value,price:document.getElementById('pm-price').value,status:document.getElementById('pm-status').value,minN:+document.getElementById('pm-min').value,maxN:+document.getElementById('pm-max').value,emoji:document.getElementById('pm-emoji').value||'P',address:document.getElementById('pm-address').value,notes:document.getElementById('pm-notes').value};
   var c=document.getElementById('pm-color').value;
+  if(c) data.color='linear-gradient(135deg,'+c+','+c+'bb)';
   showSpinner('Guardando...');
   try {
     if(editingPropId){
       var p=getProp(editingPropId);
-      Object.assign(p,data);
-      if(c) p.color='linear-gradient(135deg,'+c+','+c+'bb)';
-      var docId = p._docId || editingPropId;
-      var updateData = {...data}; if(c) updateData.color=p.color;
-      await fsUpdate('props', docId, updateData);
+      var docId = p._docId || p.id;
+      await fsSet('props', docId, data);
+      Object.assign(p, data);
       toast('Propiedad actualizada ✓');
     } else {
       var newId = uid();
-      var full = {id:newId,...data,color:c?'linear-gradient(135deg,'+c+','+c+'bb)':'linear-gradient(135deg,#1C1C1E,#3A3A3C)',platforms:[],staffCleaning:'',staffTech:'',checkin:{entryCode:'',lockboxCode:'',inTime:'15:00',outTime:'11:00',wifiName:'',wifiPass:'',welcome:'',rules:'',outInstr:'',steps:[]},inventory:[],locations:[],locNotes:'',nearby:[],nearbyNotes:''};
-      var docRef = await fsAdd('props', full);
-      full._docId = docRef;
+      var full = {id:newId,...data,color:data.color||'linear-gradient(135deg,#1C1C1E,#3A3A3C)',platforms:[],staffCleaning:'',staffTech:'',checkin:{entryCode:'',lockboxCode:'',inTime:'15:00',outTime:'11:00',wifiName:'',wifiPass:'',welcome:'',rules:'',outInstr:'',steps:[]},inventory:[],locations:[],locNotes:'',nearby:[],nearbyNotes:''};
+      await fsSet('props', newId, full);
+      full._docId = newId;
       DB.props.push(full);
       toast('Propiedad creada ✓');
     }
-  } catch(err){ console.error(err); toast('Error al guardar'); }
-  hideSpinner(); closeModal('modalProp'); editingPropId=null; renderAll();
+    hideSpinner(); closeModal('modalProp'); editingPropId=null; renderAll();
+  } catch(err){ hideSpinner(); console.error('saveProp error:', err); toast('Error: '+err.message); }
 }
 
 async function deleteProp(id){
@@ -882,15 +887,14 @@ async function deleteProp(id){
     showSpinner('Eliminando...');
     try {
       var p=getProp(id);
-      await fsDelete('props', p._docId||id);
-      // Delete related incidents
+      await fsRemove('props', p._docId||p.id);
       var relInc = DB.incidents.filter(i=>i.propId===id);
-      for(var inc of relInc){ await fsDelete('incidents', inc._docId||inc.id); }
+      for(var inc of relInc){ await fsRemove('incidents', inc._docId||inc.id); }
       DB.incidents=DB.incidents.filter(i=>i.propId!==id);
-      DB.props=DB.props.filter(p=>p.id!==id);
-      DB.props.forEach(p=>{ if(p.nearby) p.nearby=p.nearby.filter(nid=>nid!==id); });
+      DB.props=DB.props.filter(x=>x.id!==id);
+      DB.props.forEach(x=>{ if(x.nearby) x.nearby=x.nearby.filter(nid=>nid!==id); });
       toast('Propiedad eliminada ✓');
-    } catch(err){ console.error(err); toast('Error al eliminar'); }
+    } catch(err){ console.error('deleteProp error:', err); toast('Error: '+err.message); }
     hideSpinner(); closePanel(); renderAll();
   });
 }
@@ -907,19 +911,20 @@ async function saveInc(){
   try {
     if(editingIncId){
       var inc=DB.incidents.find(i=>i.id===editingIncId);
-      Object.assign(inc,data);
-      await fsUpdate('incidents', inc._docId||editingIncId, data);
+      var docId = inc._docId || inc.id;
+      await fsSet('incidents', docId, data);
+      Object.assign(inc, data);
       toast('Incidencia actualizada ✓');
     } else {
       var newId=uid();
       var full={id:newId,...data};
-      var docRef=await fsAdd('incidents',full);
-      full._docId=docRef;
+      await fsSet('incidents', newId, full);
+      full._docId=newId;
       DB.incidents.unshift(full);
       toast('Incidencia registrada ✓');
     }
-  } catch(err){ console.error(err); toast('Error al guardar'); }
-  hideSpinner(); closeModal('modalInc'); editingIncId=null; renderAll();
+    hideSpinner(); closeModal('modalInc'); editingIncId=null; renderAll();
+  } catch(err){ hideSpinner(); console.error('saveInc error:', err); toast('Error: '+err.message); }
 }
 
 async function deleteInc(id){
@@ -927,10 +932,10 @@ async function deleteInc(id){
     showSpinner('Eliminando...');
     try {
       var inc=DB.incidents.find(i=>i.id===id);
-      await fsDelete('incidents', inc._docId||id);
+      await fsRemove('incidents', inc._docId||id);
       DB.incidents=DB.incidents.filter(i=>i.id!==id);
       toast('Incidencia eliminada ✓');
-    } catch(err){ console.error(err); toast('Error al eliminar'); }
+    } catch(err){ console.error('deleteInc error:', err); toast('Error: '+err.message); }
     hideSpinner(); renderAll();
   });
 }
@@ -946,19 +951,20 @@ async function saveStaff(){
   try {
     if(editingStaffId){
       var s=DB.staff.find(x=>x.id===editingStaffId);
-      Object.assign(s,data);
-      await fsUpdate('staff', s._docId||editingStaffId, data);
+      var docId = s._docId || s.id;
+      await fsSet('staff', docId, data);
+      Object.assign(s, data);
       toast('Actualizado ✓');
     } else {
       var newId=uid();
       var full={id:newId,...data,color:colorForRole(data.role)};
-      var docRef=await fsAdd('staff',full);
-      full._docId=docRef;
+      await fsSet('staff', newId, full);
+      full._docId=newId;
       DB.staff.push(full);
       toast('Persona agregada ✓');
     }
-  } catch(err){ console.error(err); toast('Error al guardar'); }
-  hideSpinner(); closeModal('modalStaff'); editingStaffId=null; renderStaff();
+    hideSpinner(); closeModal('modalStaff'); editingStaffId=null; renderStaff();
+  } catch(err){ hideSpinner(); console.error('saveStaff error:', err); toast('Error: '+err.message); }
 }
 
 async function deleteStaff(id){
@@ -966,10 +972,10 @@ async function deleteStaff(id){
     showSpinner('Eliminando...');
     try {
       var s=DB.staff.find(x=>x.id===id);
-      await fsDelete('staff', s._docId||id);
+      await fsRemove('staff', s._docId||s.id);
       DB.staff=DB.staff.filter(x=>x.id!==id);
       toast('Persona eliminada ✓');
-    } catch(err){ console.error(err); toast('Error al eliminar'); }
+    } catch(err){ console.error('deleteStaff error:', err); toast('Error: '+err.message); }
     hideSpinner(); renderStaff();
   });
 }
