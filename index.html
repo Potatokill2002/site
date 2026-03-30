@@ -273,15 +273,6 @@
       <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>Rese&#241;as
     </div>
   </div>
-  <div class="sidebar-bottom">
-    <div class="user-chip">
-      <div class="avatar">AM</div>
-      <div class="user-info">
-        <div class="user-name">Admin Manager</div>
-        <div class="user-role">administrador</div>
-      </div>
-    </div>
-  </div>
 </nav>
 
 <div class="main">
@@ -697,17 +688,43 @@ async function fsSeed(col, items){
 async function initApp(){
   showSpinner('Conectando con base de datos...');
   try {
-    // Load all collections in parallel
-    let [props, incidents, staff] = await Promise.all([
-      fsLoad('props'), fsLoad('incidents'), fsLoad('staff')
-    ]);
+    // Test connection first with a simple read
+    console.log('[Firebase] Intentando conectar a proyecto:', firebaseApp.options.projectId);
+    
+    let props, incidents, staff;
+    
+    try {
+      props = await fsLoad('props');
+      console.log('[Firebase] props cargadas:', props.length);
+    } catch(e){
+      console.error('[Firebase] Error cargando props:', e.code, e.message);
+      throw new Error('props: ' + (e.code||'') + ' ' + e.message);
+    }
+    
+    try {
+      incidents = await fsLoad('incidents');
+      console.log('[Firebase] incidents cargadas:', incidents.length);
+    } catch(e){
+      console.error('[Firebase] Error cargando incidents:', e.code, e.message);
+      throw new Error('incidents: ' + (e.code||'') + ' ' + e.message);
+    }
+    
+    try {
+      staff = await fsLoad('staff');
+      console.log('[Firebase] staff cargados:', staff.length);
+    } catch(e){
+      console.error('[Firebase] Error cargando staff:', e.code, e.message);
+      throw new Error('staff: ' + (e.code||'') + ' ' + e.message);
+    }
 
     // If empty => seed initial data
     if(props.length===0){
       showSpinner('Primera carga — creando datos iniciales...');
+      console.log('[Firebase] Colecciones vacías, sembrando datos...');
       await fsSeed('props', SEED_PROPS);
       await fsSeed('incidents', SEED_INCIDENTS);
       await fsSeed('staff', SEED_STAFF);
+      console.log('[Firebase] Seed completado, recargando...');
       [props, incidents, staff] = await Promise.all([
         fsLoad('props'), fsLoad('incidents'), fsLoad('staff')
       ]);
@@ -719,11 +736,14 @@ async function initApp(){
 
     hideSpinner();
     renderAll();
-    toast('Conectado a Firebase ✓');
+    toast('Conectado a Firebase ✓ (' + props.length + ' props, ' + incidents.length + ' inc, ' + staff.length + ' staff)');
   } catch(err){
     hideSpinner();
-    console.error('Firebase init error:', err);
-    toast('Error de conexión — usando datos locales');
+    console.error('[Firebase] INIT ERROR COMPLETO:', err);
+    // Show detailed error to user so we can diagnose
+    var errMsg = err.message || String(err);
+    toast('Firebase error: ' + errMsg.substring(0, 80));
+    alert('Error conectando a Firebase:\n\n' + errMsg + '\n\nRevisa:\n1. Consola Firebase > Firestore Database debe estar CREADA\n2. Reglas en modo test\n3. Abre la consola del navegador (F12) para más detalles\n\nUsando datos locales por ahora.');
     // Fallback to seed data locally
     DB.props = SEED_PROPS;
     DB.incidents = SEED_INCIDENTS;
@@ -822,7 +842,7 @@ function renderStaff(){
 }
 
 /* ══════════════════════════════════════
-   PANEL
+   PANEL — fully editable tabs
 ══════════════════════════════════════ */
 function openProperty(id){
   currentPropId=id; var p=getProp(id);
@@ -835,19 +855,216 @@ function openProperty(id){
   switchTab('info');
 }
 function closePanel(){ document.getElementById('detailPanel').classList.remove('open'); document.getElementById('panelOverlay').classList.remove('open'); }
+
+function getStaffByRole(rolePrefix){
+  return DB.staff.filter(s=>s.role.startsWith(rolePrefix)||s.role===rolePrefix);
+}
+
+function staffSelect(fieldName, currentVal, roleFilter){
+  var options = DB.staff;
+  if(roleFilter) options = options.filter(s=>s.role.startsWith(roleFilter)||s.role===roleFilter);
+  return '<select class="form-select" data-field="'+fieldName+'"><option value="">— Sin asignar —</option>'+options.map(s=>'<option value="'+s.name+'"'+(s.name===currentVal?' selected':'')+'>'+s.name+' ('+s.role+')</option>').join('')+'</select>';
+}
+
+async function savePanelTab(){
+  var p=getProp(currentPropId);
+  if(!p) return;
+  var docId=p._docId||p.id;
+  showSpinner('Guardando...');
+  try {
+    // Collect all form inputs in panel
+    var inputs=document.querySelectorAll('#panelBody [data-field]');
+    var updates={};
+    inputs.forEach(function(el){
+      var field=el.getAttribute('data-field');
+      var val=el.value;
+      if(el.type==='number') val=+val;
+      // Handle nested fields like checkin.entryCode
+      if(field.includes('.')){
+        var parts=field.split('.');
+        if(!updates[parts[0]]) updates[parts[0]]=Object.assign({},p[parts[0]]||{});
+        updates[parts[0]][parts[1]]=val;
+      } else {
+        updates[field]=val;
+      }
+    });
+    // Handle checkin steps (textarea, split by newlines)
+    var stepsEl=document.getElementById('panel-checkin-steps');
+    if(stepsEl){
+      if(!updates.checkin) updates.checkin=Object.assign({},p.checkin||{});
+      updates.checkin.steps=stepsEl.value.split('\n').filter(s=>s.trim());
+    }
+    // Handle inventory items
+    var invContainer=document.getElementById('panel-inventory-list');
+    if(invContainer){
+      var items=[];
+      invContainer.querySelectorAll('.inv-row').forEach(function(row){
+        var n=row.querySelector('[data-inv="name"]').value.trim();
+        var q=+(row.querySelector('[data-inv="qty"]').value||0);
+        if(n) items.push({n:n,q:q,c:true});
+      });
+      updates.inventory=items;
+    }
+    // Handle locations
+    var locContainer=document.getElementById('panel-locations-list');
+    if(locContainer){
+      var locs=[];
+      locContainer.querySelectorAll('.loc-edit-row').forEach(function(row){
+        var icon=row.querySelector('[data-loc="icon"]').value.trim()||'📍';
+        var label=row.querySelector('[data-loc="label"]').value.trim();
+        var val=row.querySelector('[data-loc="val"]').value.trim();
+        if(label) locs.push({icon:icon,label:label,val:val});
+      });
+      updates.locations=locs;
+    }
+    var locNotesEl=document.getElementById('panel-loc-notes');
+    if(locNotesEl) updates.locNotes=locNotesEl.value;
+    // Handle platforms
+    var platContainer=document.getElementById('panel-platforms-list');
+    if(platContainer){
+      var plats=[];
+      platContainer.querySelectorAll('.plat-edit-row').forEach(function(row){
+        var icon=row.querySelector('[data-plat="icon"]').value.trim()||'🔗';
+        var name=row.querySelector('[data-plat="name"]').value.trim();
+        var url=row.querySelector('[data-plat="url"]').value.trim();
+        if(name) plats.push({icon:icon,name:name,url:url});
+      });
+      updates.platforms=plats;
+    }
+
+    Object.assign(p, updates);
+    await fsSet('props', docId, updates);
+    hideSpinner();
+    toast('Guardado ✓');
+    switchTab(currentTab);
+    renderAll();
+  } catch(err){ hideSpinner(); console.error('savePanelTab error:',err); toast('Error: '+err.message); }
+}
+
+function panelSaveBar(){
+  return '<div style="position:sticky;bottom:0;background:var(--cream);padding:14px 0 0;border-top:1px solid var(--border);margin-top:18px;display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-primary" onclick="savePanelTab()">Guardar Cambios</button></div>';
+}
+
 function switchTab(name){
   currentTab=name;
   var tabs=['info','checkin','inventario','ubicaciones','incidencias','cercanas'];
   document.querySelectorAll('.panel-tab').forEach((b,i)=>b.classList.toggle('active',tabs[i]===name));
   var p=getProp(currentPropId); if(!p) return;
   var body=document.getElementById('panelBody');
-  if(name==='info') body.innerHTML='<div class="panel-section"><div class="panel-section-title">Datos Generales</div><div class="info-grid"><div class="info-box"><div class="info-box-label">Propietario</div><div class="info-box-val">'+p.owner+'</div></div><div class="info-box"><div class="info-box-label">Telefono</div><div class="info-box-val">'+p.phone+'</div></div><div class="info-box"><div class="info-box-label">Precio/noche</div><div class="info-box-val">'+p.price+'</div></div><div class="info-box"><div class="info-box-label">Estado</div><div class="info-box-val">'+p.status+'</div></div><div class="info-box"><div class="info-box-label">Noches min/max</div><div class="info-box-val">'+p.minN+' / '+p.maxN+'</div></div><div class="info-box"><div class="info-box-label">Direccion</div><div class="info-box-val">'+p.address+'</div></div></div></div><div class="panel-section"><div class="panel-section-title">Plataformas</div>'+p.platforms.map(pl=>'<div class="platform-row"><div class="platform-icon-col">'+pl.icon+'</div><div class="platform-name-col">'+pl.name+'</div><div class="platform-url-col">'+pl.url+'</div></div>').join('')+'</div><div class="panel-section"><div class="panel-section-title">Notas</div><p style="font-size:13px;color:var(--slate);line-height:1.6">'+p.notes+'</p></div>';
-  else if(name==='checkin'){ var ci=p.checkin||{}; var steps=ci.steps||[]; body.innerHTML='<div class="panel-section"><div class="panel-section-title">Pasos de Entrada</div>'+steps.map((s,i)=>'<div class="step-row"><div class="step-num">'+(i+1)+'</div><div style="flex:1;padding:8px 0;font-size:13px">'+s+'</div></div>').join('')+'</div><div class="panel-section"><div class="panel-section-title">Accesos</div><div class="info-grid"><div class="info-box"><div class="info-box-label">Codigo porton</div><div class="info-box-val" style="font-family:DM Mono,monospace">'+(ci.entryCode||'—')+'</div></div><div class="info-box"><div class="info-box-label">Caja llaves</div><div class="info-box-val" style="font-family:DM Mono,monospace">'+(ci.lockboxCode||'—')+'</div></div><div class="info-box"><div class="info-box-label">Check-in</div><div class="info-box-val">'+(ci.inTime||'—')+'</div></div><div class="info-box"><div class="info-box-label">Check-out</div><div class="info-box-val">'+(ci.outTime||'—')+'</div></div><div class="info-box"><div class="info-box-label">WiFi</div><div class="info-box-val">'+(ci.wifiName||'—')+'</div></div><div class="info-box"><div class="info-box-label">Password</div><div class="info-box-val" style="font-family:DM Mono,monospace">'+(ci.wifiPass||'—')+'</div></div></div></div>'; }
-  else if(name==='inventario'){ var inv=p.inventory||[]; body.innerHTML='<div class="panel-section"><div class="panel-section-title">Inventario</div><div class="checklist">'+inv.map(it=>'<div class="check-item"><span style="flex:1;font-size:13px">'+it.n+'</span><span class="check-qty">'+it.q+'</span></div>').join('')+'</div></div>'; }
-  else if(name==='ubicaciones'){ var locs=p.locations||[]; body.innerHTML='<div class="panel-section"><div class="panel-section-title">Ubicaciones Clave</div><div class="location-grid">'+locs.map(l=>'<div class="location-item"><div class="loc-icon">'+l.icon+'</div><div class="loc-info"><div style="font-size:10px;color:var(--muted);font-family:DM Mono,monospace;text-transform:uppercase;letter-spacing:.1em">'+l.label+'</div><div style="font-size:13px;font-weight:500;margin-top:3px">'+l.val+'</div></div></div>').join('')+'</div></div>'+(p.locNotes?'<div class="panel-section"><div class="panel-section-title">Notas</div><p style="font-size:13px;color:var(--slate)">'+p.locNotes+'</p></div>':''); }
-  else if(name==='incidencias'){ var incs=DB.incidents.filter(i=>i.propId===currentPropId); body.innerHTML='<div class="panel-section"><div class="panel-section-title">Incidencias ('+incs.length+')</div><div class="incident-list">'+incs.map(i=>'<div class="incident-item"><div class="incident-header">'+pBadge(i.priority)+'<span class="incident-title">'+i.title+'</span></div><div class="incident-desc">'+i.type+' · '+i.status+' · '+(i.tech||'Sin asignar')+'</div></div>').join('')+'</div></div>'; }
-  else if(name==='cercanas'){ var nearbyProps=(p.nearby||[]).map(nid=>getProp(nid)).filter(Boolean); body.innerHTML='<div class="panel-section"><div class="panel-section-title">Propiedades Cercanas</div>'+nearbyProps.map(np=>'<div class="nearby-prop"><div class="prop-thumb" style="background:rgba(196,135,58,.12);font-weight:600;font-size:14px;color:var(--accent)">'+np.emoji+'</div><div class="prop-info"><div class="prop-name">'+np.name+'</div><div class="prop-nick-sm">'+np.nick+'</div></div></div>').join('')+(p.nearbyNotes?'<p style="font-size:13px;color:var(--slate);margin-top:12px">'+p.nearbyNotes+'</p>':'')+'</div>'; }
-  else body.innerHTML='<p style="color:var(--muted);padding:30px;text-align:center">Seccion: '+name+'</p>';
+  var h='';
+
+  if(name==='info'){
+    var cleaningStaff=DB.staff.filter(s=>s.role==='Limpieza');
+    var techStaff=DB.staff.filter(s=>s.role.startsWith('Técnico'));
+    h='<div class="panel-section"><div class="panel-section-title">Personal Asignado</div><div class="form-grid">';
+    h+='<div class="form-group"><label class="form-label">Encargada de Limpieza</label>'+staffSelect('staffCleaning',p.staffCleaning||'','Limpieza')+'</div>';
+    h+='<div class="form-group"><label class="form-label">Técnico Asignado</label>'+staffSelect('staffTech',p.staffTech||'','Técnico')+'</div>';
+    h+='</div></div>';
+    h+='<div class="panel-section"><div class="panel-section-title">Datos Generales</div><div class="form-grid">';
+    h+='<div class="form-group"><label class="form-label">Propietario</label><input class="form-input" data-field="owner" value="'+(p.owner||'')+'"></div>';
+    h+='<div class="form-group"><label class="form-label">Teléfono</label><input class="form-input" data-field="phone" value="'+(p.phone||'')+'"></div>';
+    h+='<div class="form-group"><label class="form-label">Precio/noche</label><input class="form-input" data-field="price" value="'+(p.price||'')+'"></div>';
+    h+='<div class="form-group"><label class="form-label">Estado</label><select class="form-select" data-field="status"><option'+(p.status==='Activa'?' selected':'')+'>Activa</option><option'+(p.status==='Mantenimiento'?' selected':'')+'>Mantenimiento</option><option'+(p.status==='Bloqueada'?' selected':'')+'>Bloqueada</option></select></div>';
+    h+='<div class="form-group"><label class="form-label">Noches mínimas</label><input class="form-input" type="number" data-field="minN" value="'+(p.minN||2)+'"></div>';
+    h+='<div class="form-group"><label class="form-label">Noches máximas</label><input class="form-input" type="number" data-field="maxN" value="'+(p.maxN||30)+'"></div>';
+    h+='<div class="form-group form-full"><label class="form-label">Dirección</label><input class="form-input" data-field="address" value="'+(p.address||'')+'"></div>';
+    h+='<div class="form-group form-full"><label class="form-label">Notas</label><textarea class="form-textarea" data-field="notes" rows="2">'+(p.notes||'')+'</textarea></div>';
+    h+='</div></div>';
+    // Platforms editable
+    h+='<div class="panel-section"><div class="panel-section-title">Plataformas</div>';
+    h+='<div id="panel-platforms-list">';
+    (p.platforms||[]).forEach(function(pl){
+      h+='<div class="plat-edit-row" style="display:flex;gap:6px;margin-bottom:6px;align-items:center"><input class="form-input" data-plat="icon" value="'+pl.icon+'" style="width:44px;text-align:center"><input class="form-input" data-plat="name" value="'+pl.name+'" placeholder="Nombre" style="flex:1"><input class="form-input" data-plat="url" value="'+pl.url+'" placeholder="URL" style="flex:2;font-family:DM Mono,monospace;font-size:11px"><button class="btn btn-icon btn-sm" style="color:var(--danger)" onclick="this.parentElement.remove()">✕</button></div>';
+    });
+    h+='</div><button class="btn btn-ghost btn-sm" onclick="addPlatformRow()" style="margin-top:6px">+ Agregar plataforma</button></div>';
+    h+=panelSaveBar();
+  }
+
+  else if(name==='checkin'){
+    var ci=p.checkin||{};
+    h='<div class="panel-section"><div class="panel-section-title">Accesos</div><div class="form-grid">';
+    h+='<div class="form-group"><label class="form-label">Código portón</label><input class="form-input" data-field="checkin.entryCode" value="'+(ci.entryCode||'')+'" style="font-family:DM Mono,monospace"></div>';
+    h+='<div class="form-group"><label class="form-label">Código caja llaves</label><input class="form-input" data-field="checkin.lockboxCode" value="'+(ci.lockboxCode||'')+'" style="font-family:DM Mono,monospace"></div>';
+    h+='<div class="form-group"><label class="form-label">Hora Check-in</label><input class="form-input" type="time" data-field="checkin.inTime" value="'+(ci.inTime||'15:00')+'"></div>';
+    h+='<div class="form-group"><label class="form-label">Hora Check-out</label><input class="form-input" type="time" data-field="checkin.outTime" value="'+(ci.outTime||'11:00')+'"></div>';
+    h+='<div class="form-group"><label class="form-label">WiFi Red</label><input class="form-input" data-field="checkin.wifiName" value="'+(ci.wifiName||'')+'"></div>';
+    h+='<div class="form-group"><label class="form-label">WiFi Password</label><input class="form-input" data-field="checkin.wifiPass" value="'+(ci.wifiPass||'')+'" style="font-family:DM Mono,monospace"></div>';
+    h+='<div class="form-group form-full"><label class="form-label">Mensaje de bienvenida</label><textarea class="form-textarea" data-field="checkin.welcome" rows="2">'+(ci.welcome||'')+'</textarea></div>';
+    h+='<div class="form-group form-full"><label class="form-label">Reglas</label><textarea class="form-textarea" data-field="checkin.rules" rows="3">'+(ci.rules||'')+'</textarea></div>';
+    h+='<div class="form-group form-full"><label class="form-label">Instrucciones de salida</label><textarea class="form-textarea" data-field="checkin.outInstr" rows="2">'+(ci.outInstr||'')+'</textarea></div>';
+    h+='</div></div>';
+    h+='<div class="panel-section"><div class="panel-section-title">Pasos de Entrada (uno por línea)</div>';
+    h+='<textarea class="form-textarea" id="panel-checkin-steps" rows="5" placeholder="Paso 1...\nPaso 2...\nPaso 3...">'+(ci.steps||[]).join('\n')+'</textarea></div>';
+    h+=panelSaveBar();
+  }
+
+  else if(name==='inventario'){
+    var inv=p.inventory||[];
+    h='<div class="panel-section"><div class="panel-section-title">Inventario</div>';
+    h+='<div id="panel-inventory-list">';
+    inv.forEach(function(it){
+      h+='<div class="inv-row" style="display:flex;gap:8px;margin-bottom:6px;align-items:center"><input class="form-input" data-inv="name" value="'+it.n+'" placeholder="Artículo" style="flex:1"><input class="form-input" type="number" data-inv="qty" value="'+it.q+'" style="width:70px;text-align:center;font-family:DM Mono,monospace"><button class="btn btn-icon btn-sm" style="color:var(--danger)" onclick="this.parentElement.remove()">✕</button></div>';
+    });
+    h+='</div>';
+    h+='<button class="btn btn-ghost btn-sm" onclick="addInventoryRow()" style="margin-top:6px">+ Agregar artículo</button></div>';
+    h+=panelSaveBar();
+  }
+
+  else if(name==='ubicaciones'){
+    var locs=p.locations||[];
+    h='<div class="panel-section"><div class="panel-section-title">Ubicaciones Clave</div>';
+    h+='<div id="panel-locations-list">';
+    locs.forEach(function(l){
+      h+='<div class="loc-edit-row" style="display:flex;gap:6px;margin-bottom:6px;align-items:center"><input class="form-input" data-loc="icon" value="'+l.icon+'" style="width:44px;text-align:center"><input class="form-input" data-loc="label" value="'+l.label+'" placeholder="Etiqueta" style="flex:1"><input class="form-input" data-loc="val" value="'+l.val+'" placeholder="Ubicación" style="flex:2"><button class="btn btn-icon btn-sm" style="color:var(--danger)" onclick="this.parentElement.remove()">✕</button></div>';
+    });
+    h+='</div>';
+    h+='<button class="btn btn-ghost btn-sm" onclick="addLocationRow()" style="margin-top:6px">+ Agregar ubicación</button></div>';
+    h+='<div class="panel-section"><div class="panel-section-title">Notas de Ubicaciones</div>';
+    h+='<textarea class="form-textarea" id="panel-loc-notes" rows="2" placeholder="Notas adicionales...">'+(p.locNotes||'')+'</textarea></div>';
+    h+=panelSaveBar();
+  }
+
+  else if(name==='incidencias'){
+    var incs=DB.incidents.filter(i=>i.propId===currentPropId);
+    h='<div class="panel-section"><div class="panel-section-title">Incidencias ('+incs.length+')</div>';
+    h+='<button class="btn btn-primary btn-sm" onclick="closePanel();openIncModal()" style="margin-bottom:12px">+ Nueva Incidencia</button>';
+    h+='<div class="incident-list">'+incs.map(i=>'<div class="incident-item"><div class="item-actions"><button class="btn btn-ghost btn-icon btn-sm" onclick="editIncModal(\''+i.id+'\')">Edit</button></div><div class="incident-header">'+pBadge(i.priority)+'<span class="incident-title">'+i.title+'</span></div><div class="incident-desc">'+i.type+' · '+i.status+' · '+(i.tech||'Sin asignar')+'</div>'+(i.desc?'<div class="incident-desc" style="margin-top:4px;color:var(--charcoal)">'+i.desc+'</div>':'')+'</div>').join('')+'</div></div>';
+  }
+
+  else if(name==='cercanas'){
+    var nearbyProps=(p.nearby||[]).map(nid=>getProp(nid)).filter(Boolean);
+    h='<div class="panel-section"><div class="panel-section-title">Propiedades Cercanas</div>';
+    h+=nearbyProps.map(np=>'<div class="nearby-prop"><div class="prop-thumb" style="background:rgba(196,135,58,.12);font-weight:600;font-size:14px;color:var(--accent)">'+np.emoji+'</div><div class="prop-info"><div class="prop-name">'+np.name+'</div><div class="prop-nick-sm">'+np.nick+'</div></div></div>').join('');
+    h+=(p.nearbyNotes?'<p style="font-size:13px;color:var(--slate);margin-top:12px">'+p.nearbyNotes+'</p>':'')+'</div>';
+  }
+
+  body.innerHTML=h;
+}
+
+/* Add row helpers for panel editing */
+function addPlatformRow(){
+  var c=document.getElementById('panel-platforms-list');
+  var row=document.createElement('div');
+  row.className='plat-edit-row';
+  row.style.cssText='display:flex;gap:6px;margin-bottom:6px;align-items:center';
+  row.innerHTML='<input class="form-input" data-plat="icon" value="🔗" style="width:44px;text-align:center"><input class="form-input" data-plat="name" placeholder="Nombre" style="flex:1"><input class="form-input" data-plat="url" placeholder="URL" style="flex:2;font-family:DM Mono,monospace;font-size:11px"><button class="btn btn-icon btn-sm" style="color:var(--danger)" onclick="this.parentElement.remove()">✕</button>';
+  c.appendChild(row);
+}
+function addInventoryRow(){
+  var c=document.getElementById('panel-inventory-list');
+  var row=document.createElement('div');
+  row.className='inv-row';
+  row.style.cssText='display:flex;gap:8px;margin-bottom:6px;align-items:center';
+  row.innerHTML='<input class="form-input" data-inv="name" placeholder="Artículo" style="flex:1"><input class="form-input" type="number" data-inv="qty" value="1" style="width:70px;text-align:center;font-family:DM Mono,monospace"><button class="btn btn-icon btn-sm" style="color:var(--danger)" onclick="this.parentElement.remove()">✕</button>';
+  c.appendChild(row);
+}
+function addLocationRow(){
+  var c=document.getElementById('panel-locations-list');
+  var row=document.createElement('div');
+  row.className='loc-edit-row';
+  row.style.cssText='display:flex;gap:6px;margin-bottom:6px;align-items:center';
+  row.innerHTML='<input class="form-input" data-loc="icon" value="📍" style="width:44px;text-align:center"><input class="form-input" data-loc="label" placeholder="Etiqueta" style="flex:1"><input class="form-input" data-loc="val" placeholder="Ubicación" style="flex:2"><button class="btn btn-icon btn-sm" style="color:var(--danger)" onclick="this.parentElement.remove()">✕</button>';
+  c.appendChild(row);
 }
 
 /* ══════════════════════════════════════
@@ -1097,6 +1314,10 @@ window.deleteProp = deleteProp;
 window.openProperty = openProperty;
 window.closePanel = closePanel;
 window.switchTab = switchTab;
+window.savePanelTab = savePanelTab;
+window.addPlatformRow = addPlatformRow;
+window.addInventoryRow = addInventoryRow;
+window.addLocationRow = addLocationRow;
 window.openIncModal = openIncModal;
 window.editIncModal = editIncModal;
 window.saveInc = saveInc;
