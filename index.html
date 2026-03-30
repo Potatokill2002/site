@@ -241,6 +241,32 @@
   }
 
   /* ══════════════════════════════════════
+     ENTRADAS / CSV SECTION
+  ══════════════════════════════════════ */
+  .entradas-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+  .entradas-toolbar .form-input{max-width:180px;}
+  .csv-drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:24px;text-align:center;cursor:pointer;transition:all .2s;background:var(--warm-white);position:relative;margin-bottom:18px;}
+  .csv-drop-zone:hover,.csv-drop-zone.dragover{border-color:var(--accent);background:var(--accent-light);}
+  .csv-drop-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;}
+  .csv-drop-zone .csv-icon{font-size:24px;margin-bottom:6px;}
+  .csv-drop-zone .csv-text{font-size:13px;color:var(--muted);}
+  .csv-drop-zone .csv-text strong{color:var(--charcoal);}
+  .entradas-table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--cream);}
+  .entradas-table{width:100%;border-collapse:collapse;min-width:700px;}
+  .entradas-table th{position:sticky;top:0;background:var(--charcoal);color:white;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-family:'DM Mono',monospace;padding:10px 12px;white-space:nowrap;z-index:2;}
+  .entradas-table td{padding:9px 12px;font-size:13px;border-bottom:1px solid var(--border);color:var(--charcoal);vertical-align:middle;}
+  .entradas-table tr:hover td{background:var(--sand);}
+  .entradas-table .check-col{text-align:center;width:50px;}
+  .entradas-table th.check-col{text-align:center;}
+  .entradas-check{width:18px;height:18px;cursor:pointer;accent-color:var(--accent);}
+  .entradas-del{opacity:0;transition:.15s;background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;line-height:1;}
+  .entradas-table tr:hover .entradas-del{opacity:1;}
+  .entradas-stats{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+  .entradas-stat{background:var(--cream);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 18px;display:flex;align-items:center;gap:10px;}
+  .entradas-stat-val{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:500;}
+  .entradas-stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-family:'DM Mono',monospace;}
+
+  /* ══════════════════════════════════════
      REVIEWS SECTION STYLES
   ══════════════════════════════════════ */
   .review-form-container{max-width:780px;}
@@ -316,6 +342,9 @@
     </div>
     <div class="nav-item" onclick="showView('staff')">
       <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Equipo
+    </div>
+    <div class="nav-item" onclick="showView('entradas')">
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>Entradas
     </div>
   </div>
   <div class="sidebar-section">
@@ -494,10 +523,50 @@
         </div>
       </div>
     </div>
+
+    <!-- ENTRADAS / CSV -->
+    <div class="view" id="view-entradas">
+      <div class="section-header">
+        <div class="section-title">Entradas — Check-ins Operativos</div>
+      </div>
+
+      <div class="entradas-toolbar">
+        <div class="form-group" style="margin:0">
+          <label class="form-label" style="margin-bottom:2px">Fecha</label>
+          <input class="form-input" type="date" id="entradas-date" style="max-width:180px" onchange="loadEntradas()">
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;margin-top:auto">
+          <button class="btn btn-primary" onclick="document.getElementById('csv-file-input').click()">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Importar CSV
+          </button>
+          <input type="file" id="csv-file-input" accept=".csv,.txt" style="display:none" onchange="handleCSVImport(event)">
+          <button class="btn btn-ghost" onclick="saveEntradas()">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Guardar
+          </button>
+          <button class="btn btn-ghost" onclick="deleteAllEntradas()" style="color:var(--danger)">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+            Eliminar Todo
+          </button>
+        </div>
+      </div>
+
+      <div id="entradas-stats" class="entradas-stats"></div>
+
+      <div class="csv-drop-zone" id="csvDropZone">
+        <input type="file" accept=".csv,.txt" onchange="handleCSVImport(event)">
+        <div class="csv-icon">
+          <svg width="28" height="28" fill="none" stroke="var(--muted)" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <div class="csv-text"><strong>Arrastra o haz clic</strong> para importar archivo CSV<br><span style="font-size:11px;color:var(--muted)">Formato: .csv — Los datos se agregan a la fecha seleccionada</span></div>
+      </div>
+
+      <div id="entradas-table-container"></div>
+    </div>
+
   </div>
 </div>
-
-<!-- PANEL -->
 <div class="panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
 <div class="detail-panel" id="detailPanel">
   <div class="panel-header">
@@ -1313,11 +1382,12 @@ function showView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('view-'+name).classList.add('active');
-  var titles={dashboard:'Dashboard',properties:'Propiedades',incidents:'Incidencias',staff:'Equipo',reviews:'Reseñas'};
+  var titles={dashboard:'Dashboard',properties:'Propiedades',incidents:'Incidencias',staff:'Equipo',entradas:'Entradas',reviews:'Reseñas'};
   document.getElementById('pageTitle').textContent=titles[name]||name;
-  var navMap={dashboard:0,properties:1,incidents:2,staff:3,reviews:4};
+  var navMap={dashboard:0,properties:1,incidents:2,staff:3,entradas:4,reviews:5};
   var navItems=document.querySelectorAll('.nav-item');
   if(navMap[name]!==undefined) navItems[navMap[name]].classList.add('active');
+  if(name==='entradas') loadEntradas();
 }
 function handlePropSearch(){ renderProperties(document.getElementById('propSearchInput').value.toLowerCase()); }
 
@@ -1413,6 +1483,246 @@ async function loadReviewHistory(){
 }
 
 /* ══════════════════════════════════════
+   ENTRADAS / CSV MODULE
+══════════════════════════════════════ */
+let entradasCache = {}; // { 'YYYY-MM-DD': [ {csvData:{...}, checkin:false, instrucciones:false, limpieza:false, llamadas:false, _rowId:'xxx'}, ... ] }
+
+function getEntradasDate(){
+  var el=document.getElementById('entradas-date');
+  if(!el.value) el.value=new Date().toISOString().slice(0,10);
+  return el.value;
+}
+
+function parseCSV(text){
+  var lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2) return {headers:[],rows:[]};
+  // Detect separator
+  var sep=lines[0].includes(';')?';':',';
+  function parseLine(line){
+    var result=[]; var current=''; var inQuotes=false;
+    for(var i=0;i<line.length;i++){
+      var ch=line[i];
+      if(ch==='"'){ inQuotes=!inQuotes; }
+      else if(ch===sep&&!inQuotes){ result.push(current.trim()); current=''; }
+      else { current+=ch; }
+    }
+    result.push(current.trim());
+    return result;
+  }
+  var headers=parseLine(lines[0]);
+  var rows=[];
+  for(var i=1;i<lines.length;i++){
+    var vals=parseLine(lines[i]);
+    if(vals.length>0 && vals.some(v=>v)){
+      var obj={};
+      headers.forEach(function(h,idx){ obj[h]=vals[idx]||''; });
+      rows.push(obj);
+    }
+  }
+  return {headers:headers,rows:rows};
+}
+
+function handleCSVImport(e){
+  var file=e.target.files[0];
+  if(!file) return;
+  var date=getEntradasDate();
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    var text=ev.target.result;
+    var parsed=parseCSV(text);
+    if(parsed.rows.length===0){ toast('El CSV está vacío o no se pudo leer'); return; }
+    // Get existing entries for this date
+    if(!entradasCache[date]) entradasCache[date]=[];
+    var existing=entradasCache[date];
+    // Add new rows without duplicating (check by all CSV values combined)
+    var existingKeys=new Set(existing.map(function(r){ return JSON.stringify(r.csvData); }));
+    var added=0;
+    parsed.rows.forEach(function(row){
+      var key=JSON.stringify(row);
+      if(!existingKeys.has(key)){
+        existing.push({
+          csvData:row,
+          checkin:false,
+          instrucciones:false,
+          limpieza:false,
+          llamadas:false,
+          _rowId:uid()
+        });
+        existingKeys.add(key);
+        added++;
+      }
+    });
+    // Store headers
+    if(!entradasCache._headers || entradasCache._headers.length<parsed.headers.length){
+      entradasCache._headers=parsed.headers;
+    }
+    toast(added+' registros importados'+(added<parsed.rows.length?' ('+(parsed.rows.length-added)+' duplicados omitidos)':''));
+    renderEntradas();
+    // Reset file input
+    e.target.value='';
+  };
+  reader.onerror=function(){ toast('Error al leer el archivo'); };
+  reader.readAsText(file,'UTF-8');
+}
+
+async function loadEntradas(){
+  var date=getEntradasDate();
+  // If already cached, just render
+  if(entradasCache[date]){ renderEntradas(); return; }
+  // Load from Firestore
+  try {
+    var docId='entradas_'+date;
+    var snap=await getDocs(collection(db,'entradas'));
+    var found=false;
+    snap.docs.forEach(function(d){
+      if(d.id===docId){
+        var data=d.data();
+        entradasCache[date]=data.rows||[];
+        if(data.headers) entradasCache._headers=data.headers;
+        found=true;
+      }
+    });
+    if(!found) entradasCache[date]=[];
+  } catch(err){
+    console.error('loadEntradas error:',err);
+    if(!entradasCache[date]) entradasCache[date]=[];
+  }
+  renderEntradas();
+}
+
+async function saveEntradas(){
+  var date=getEntradasDate();
+  var rows=entradasCache[date]||[];
+  var headers=entradasCache._headers||[];
+  showSpinner('Guardando entradas...');
+  try {
+    var docId='entradas_'+date;
+    await fsSet('entradas',docId,{date:date,headers:headers,rows:rows,updatedAt:new Date().toISOString()});
+    hideSpinner();
+    toast('Entradas guardadas ✓ ('+rows.length+' registros)');
+  } catch(err){
+    hideSpinner();
+    console.error('saveEntradas error:',err);
+    toast('Error: '+err.message);
+  }
+}
+
+function deleteEntradaRow(rowId){
+  var date=getEntradasDate();
+  var rows=entradasCache[date]||[];
+  entradasCache[date]=rows.filter(function(r){return r._rowId!==rowId;});
+  renderEntradas();
+  toast('Registro eliminado (guarda para persistir)');
+}
+
+function deleteAllEntradas(){
+  var date=getEntradasDate();
+  var rows=entradasCache[date]||[];
+  if(rows.length===0){ toast('No hay registros para eliminar'); return; }
+  confirm2('Eliminar todo para '+date+'?','Se eliminarán '+rows.length+' registros. Esta acción no se puede deshacer.',async function(){
+    showSpinner('Eliminando...');
+    try {
+      entradasCache[date]=[];
+      await fsRemove('entradas','entradas_'+date);
+      hideSpinner();
+      renderEntradas();
+      toast('Registros eliminados ✓');
+    } catch(err){
+      hideSpinner();
+      // If doc didn't exist, that's ok
+      entradasCache[date]=[];
+      renderEntradas();
+      toast('Registros eliminados');
+    }
+  });
+}
+
+function toggleEntradaCheck(rowId,field){
+  var date=getEntradasDate();
+  var rows=entradasCache[date]||[];
+  var row=rows.find(function(r){return r._rowId===rowId;});
+  if(row) row[field]=!row[field];
+}
+
+function renderEntradas(){
+  var date=getEntradasDate();
+  var rows=entradasCache[date]||[];
+  var headers=entradasCache._headers||[];
+  var container=document.getElementById('entradas-table-container');
+  var statsEl=document.getElementById('entradas-stats');
+  var dropZone=document.getElementById('csvDropZone');
+
+  // Stats
+  var total=rows.length;
+  var doneCheckin=rows.filter(function(r){return r.checkin;}).length;
+  var doneInstr=rows.filter(function(r){return r.instrucciones;}).length;
+  var doneLimp=rows.filter(function(r){return r.limpieza;}).length;
+  var doneLlam=rows.filter(function(r){return r.llamadas;}).length;
+
+  if(total>0){
+    statsEl.innerHTML='<div class="entradas-stat"><div class="entradas-stat-val">'+total+'</div><div class="entradas-stat-label">Registros</div></div>'
+      +'<div class="entradas-stat"><div class="entradas-stat-val" style="color:var(--success)">'+doneCheckin+'</div><div class="entradas-stat-label">Check-in</div></div>'
+      +'<div class="entradas-stat"><div class="entradas-stat-val" style="color:var(--info)">'+doneInstr+'</div><div class="entradas-stat-label">Instrucciones</div></div>'
+      +'<div class="entradas-stat"><div class="entradas-stat-val" style="color:var(--warning)">'+doneLimp+'</div><div class="entradas-stat-label">Limpieza</div></div>'
+      +'<div class="entradas-stat"><div class="entradas-stat-val" style="color:var(--accent)">'+doneLlam+'</div><div class="entradas-stat-label">Llamadas</div></div>';
+    dropZone.style.display='none';
+  } else {
+    statsEl.innerHTML='';
+    dropZone.style.display='';
+  }
+
+  if(total===0){
+    container.innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--muted)"><p>No hay entradas para <strong>'+date+'</strong></p><p style="font-size:12px;margin-top:6px">Importa un archivo CSV o selecciona otra fecha</p></div>';
+    return;
+  }
+
+  // Build table
+  var checkFields=['checkin','instrucciones','limpieza','llamadas'];
+  var checkLabels=['Check-in','Instrucciones','Limpieza','Llamadas'];
+  var h='<div class="entradas-table-wrap"><table class="entradas-table"><thead><tr><th style="width:36px">#</th>';
+  headers.forEach(function(col){ h+='<th>'+col+'</th>'; });
+  checkLabels.forEach(function(label){ h+='<th class="check-col">'+label+'</th>'; });
+  h+='<th style="width:36px"></th></tr></thead><tbody>';
+
+  rows.forEach(function(row,idx){
+    h+='<tr>';
+    h+='<td style="color:var(--muted);font-family:DM Mono,monospace;font-size:11px">'+(idx+1)+'</td>';
+    headers.forEach(function(col){
+      h+='<td>'+(row.csvData[col]||'—')+'</td>';
+    });
+    checkFields.forEach(function(field){
+      h+='<td class="check-col"><input type="checkbox" class="entradas-check" '+(row[field]?'checked':'')+' onchange="toggleEntradaCheck(\''+row._rowId+'\',\''+field+'\')"></td>';
+    });
+    h+='<td><button class="entradas-del" onclick="deleteEntradaRow(\''+row._rowId+'\')" title="Eliminar">✕</button></td>';
+    h+='</tr>';
+  });
+
+  h+='</tbody></table></div>';
+  container.innerHTML=h;
+}
+
+// CSV drag & drop
+(function(){
+  var dz=document.getElementById('csvDropZone');
+  if(!dz) return;
+  dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('dragover');});
+  dz.addEventListener('dragleave',function(){dz.classList.remove('dragover');});
+  dz.addEventListener('drop',function(e){
+    e.preventDefault();dz.classList.remove('dragover');
+    var f=e.dataTransfer.files[0];
+    if(f&&(f.name.endsWith('.csv')||f.name.endsWith('.txt'))){
+      handleCSVImport({target:{files:[f]}});
+    } else { toast('Solo se aceptan archivos .csv'); }
+  });
+})();
+
+// Set default date
+(function(){
+  var el=document.getElementById('entradas-date');
+  if(el&&!el.value) el.value=new Date().toISOString().slice(0,10);
+})();
+
+/* ══════════════════════════════════════
    EXPOSE TO GLOBAL (needed for onclick in HTML)
 ══════════════════════════════════════ */
 window.showView = showView;
@@ -1446,6 +1756,12 @@ window.removeImage = removeImage;
 window.previewReviewEmail = previewReviewEmail;
 window.submitReview = submitReview;
 window.loadReviewHistory = loadReviewHistory;
+window.handleCSVImport = handleCSVImport;
+window.loadEntradas = loadEntradas;
+window.saveEntradas = saveEntradas;
+window.deleteEntradaRow = deleteEntradaRow;
+window.deleteAllEntradas = deleteAllEntradas;
+window.toggleEntradaCheck = toggleEntradaCheck;
 
 /* ══════════════════════════════════════
    INIT
